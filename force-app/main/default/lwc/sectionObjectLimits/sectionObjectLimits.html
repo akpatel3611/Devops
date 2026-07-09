@@ -1,0 +1,18 @@
+<template>
+  <div class="section-shell">
+    <div class="section-header slds-page-header slds-page-header_joined">
+      <p class="section-kicker">Object Manager</p>
+      <h1 class="section-title">Object Limits</h1>
+      <p class="section-subtitle">{objectName}</p>
+    </div>
+
+    <div class="limits-card slds-card">
+      <template for:each={limitRows} for:item="row">
+        <div key={row.label} class="limit-row">
+          <div class="limit-label">{row.label}</div>
+          <div class="limit-value">{row.value}</div>
+        </div>
+      </template>
+    </div>
+  </div>
+</template>

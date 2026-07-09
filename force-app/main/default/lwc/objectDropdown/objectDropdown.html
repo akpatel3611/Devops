@@ -1,0 +1,59 @@
+<template>
+  <div class="dropdown-container">
+    <button type="button" class="dropdown-header" onclick={toggleDropdown}>
+      <span class="dropdown-header__text">{selectedLabel}</span>
+      <span class="dropdown-header__meta">
+        <template if:true={hasSelection}>
+          <span class="type-pill">{selectedTypeLabel}</span>
+        </template>
+        <span class={dropdownArrowClass} aria-hidden="true"></span>
+      </span>
+    </button>
+
+    <template if:true={isOpen}>
+      <div class="dropdown-body" onclick={stopPropagation}>
+        <div class="search-box-wrap">
+          <lightning-icon
+            icon-name="utility:search"
+            size="xx-small"
+            alternative-text="Search"
+            class="search-icon"
+          ></lightning-icon>
+          <input
+            type="text"
+            placeholder="Search by label, API name, or type"
+            class="search-box"
+            onclick={stopPropagation}
+            oninput={handleSearch}
+          />
+        </div>
+
+        <div class="object-list">
+          <template if:true={hasFilteredObjects}>
+            <template for:each={filteredObjects} for:item="obj">
+              <button
+                type="button"
+                key={obj.apiName}
+                class="object-item"
+                data-name={obj.apiName}
+                onclick={selectObject}
+              >
+                <span class="object-item__primary" title={obj.label}
+                  >{obj.label}</span
+                >
+                <span class="object-item__secondary" title={obj.apiName}
+                  >{obj.apiName}</span
+                >
+                <span class="type-pill">{obj.typeLabel}</span>
+              </button>
+            </template>
+          </template>
+
+          <template if:false={hasFilteredObjects}>
+            <div class="no-data">No matching objects found.</div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>

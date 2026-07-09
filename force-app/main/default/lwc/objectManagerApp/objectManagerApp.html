@@ -1,0 +1,234 @@
+<template>
+  <div class="header">
+    <div class="header-left">
+      <c-object-dropdown
+        selected-object-api-name={selectedObject}
+        selected-object-label={selectedObjectLabel}
+        onobjectselect={handleObjectSelect}
+      ></c-object-dropdown>
+    </div>
+
+    <div class="header-center">
+      <div class="header-search">
+        <input
+          type="text"
+          class="global-search-input"
+          placeholder="Global search across objects and fields"
+          value={globalSearchTerm}
+          onclick={stopPropagation}
+          oninput={handleGlobalSearchInput}
+        />
+
+        <template if:true={showGlobalSearchDropdown}>
+          <div class="global-search-results" onclick={stopPropagation}>
+            <template if:true={hasGlobalSearchResults}>
+              <template
+                for:each={normalizedGlobalSearchResults}
+                for:item="result"
+              >
+                <button
+                  type="button"
+                  key={result.key}
+                  class="global-search-result"
+                  data-object-api-name={result.objectApiName}
+                  data-object-label={result.objectLabel}
+                  data-field-name={result.fieldName}
+                  onclick={handleSearchResultSelect}
+                >
+                  <span class="global-search-result__title">
+                    {result.fieldLabel}
+                  </span>
+                  <span class="global-search-result__meta">
+                    {result.objectLabel} | {result.fieldName}
+                  </span>
+                </button>
+              </template>
+            </template>
+
+            <template if:false={hasGlobalSearchResults}>
+              <div class="global-search-empty">No matching fields found.</div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <template if:true={hasSelectedObject}>
+        <lightning-button
+          label="Browse Objects"
+          variant="neutral"
+          onclick={handleBackToObjects}
+        ></lightning-button>
+      </template>
+      <lightning-button
+        label="Create Object"
+        variant="brand"
+        onclick={handleCreate}
+      ></lightning-button>
+    </div>
+  </div>
+
+  <div class={appShellClass}>
+    <template if:true={hasSelectedObject}>
+      <div class="body">
+        <div class="sidebar">
+          <div class="section-title">Sections</div>
+
+          <ul class="section-list">
+            <template for:each={computedSections} for:item="section">
+              <li
+                key={section.id}
+                class={section.itemClass}
+                data-section-id={section.id}
+                onclick={handleSectionClick}
+              >
+                {section.label}
+              </li>
+            </template>
+          </ul>
+        </div>
+
+        <div class="content-panel">
+          <template if:true={isDetailsSection}>
+            <c-section-details
+              object-name={selectedObject}
+            ></c-section-details>
+          </template>
+
+          <template if:true={isFieldsSection}>
+            <c-section-fields
+              object-name={selectedObject}
+              initial-search-term={fieldSearchTerm}
+            ></c-section-fields>
+          </template>
+
+          <template if:true={isRecordTypesSection}>
+            <c-section-record-types
+              object-name={selectedObject}
+            ></c-section-record-types>
+          </template>
+
+          <template if:true={isPlaceholderSection}>
+            <c-section-placeholder
+              object-name={selectedObject}
+              section-id={activeSection}
+              section-label={activeSectionLabel}
+            ></c-section-placeholder>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <template if:false={hasSelectedObject}>
+      <div class="object-browser">
+        <div class="object-browser__header">
+          <div>
+            <div class="object-browser__title-row">
+              <h2 class="empty-state__title">Browse Objects</h2>
+              <span class="count-badge">{objectCountLabel}</span>
+            </div>
+            <p class="empty-state__body">
+              Select an object to open its metadata sections.
+            </p>
+          </div>
+
+          <input
+            type="text"
+            class="object-browser__search"
+            placeholder="Search by label, API name, or type"
+            value={objectBrowserSearch}
+            oninput={handleBrowseSearch}
+          />
+        </div>
+
+        <div class="list-view-card">
+          <div class="list-view-scroll">
+            <table
+              class="object-list-view slds-table slds-table_cell-buffer slds-table_bordered slds-no-row-hover"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">Object Label</th>
+                  <th scope="col">API Name</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" class="object-list-view__actions-header">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <template if:true={hasObjects}>
+                  <template for:each={filteredObjectRows} for:item="objectItem">
+                    <tr
+                      key={objectItem.key}
+                      class="object-row"
+                      data-object-name={objectItem.apiName}
+                      data-object-label={objectItem.label}
+                      onclick={handleObjectRowSelect}
+                    >
+                      <td>{objectItem.label}</td>
+                      <td>{objectItem.apiName}</td>
+                      <td>
+                        <span class="type-pill">{objectItem.typeLabel}</span>
+                      </td>
+                      <td class="object-row__actions">
+                        <div
+                          class="object-row__actions-menu"
+                          onclick={stopPropagation}
+                        >
+                          <lightning-button-menu
+                            alternative-text="Object actions"
+                            icon-name="utility:down"
+                            menu-alignment="right"
+                            data-object-id={objectItem.apiName}
+                            data-object-label={objectItem.label}
+                            onselect={handleObjectAction}
+                          >
+                            <lightning-menu-item
+                              value="export"
+                              label="Export Docs"
+                            ></lightning-menu-item>
+                            <lightning-menu-item
+                              value="delete"
+                              label="Delete"
+                              disabled={objectItem.deleteDisabled}
+                            ></lightning-menu-item>
+                          </lightning-button-menu>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+
+                <template if:false={hasObjects}>
+                  <tr>
+                    <td colspan="4" class="global-search-empty">
+                      No objects match the current filter.
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <template if:true={isExportModalOpen}>
+    <c-export-modal
+      mode="single"
+      object-id={exportModalObjectId}
+      onclose={handleCloseExportModal}
+    ></c-export-modal>
+  </template>
+
+  <template if:true={isImpactModalOpen}>
+    <c-impact-analyzer-modal
+      target={impactTarget}
+      onclose={handleCloseImpactModal}
+      onconfirmdelete={handleConfirmObjectDelete}
+    ></c-impact-analyzer-modal>
+  </template>
+</template>

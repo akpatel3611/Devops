@@ -1,0 +1,18 @@
+<template>
+    <lightning-card title="Crypto Price Tracker">
+        <div class="slds-p-around_medium">
+            <p><strong>Bitcoin (BTC):</strong> {btcPrice}</p>
+            <p><strong>Ethereum (ETH):</strong> {ethPrice}</p>
+        </div>
+
+        <template if:true={errorMessage}>
+            <div class="slds-text-color_error slds-p-around_medium">
+                {errorMessage}
+            </div>
+        </template>
+
+        <div class="slds-p-around_medium">
+            <lightning-button label="Refresh Prices" onclick={handleRefresh} variant="brand"></lightning-button>
+        </div>
+    </lightning-card>
+</template>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>User_Type__c</fullName>
+    <label>User Type</label>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>MultiselectPicklist</type>
+    <valueSet>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Owner</fullName>
+                <default>false</default>
+                <label>Owner</label>
+            </value>
+            <value>
+                <fullName>Tenent</fullName>
+                <default>false</default>
+                <label>Tenent</label>
+            </value>
+            <value>
+                <fullName>Holiday Homes</fullName>
+                <default>false</default>
+                <label>Holiday Homes</label>
+            </value>
+            <value>
+                <fullName>Security</fullName>
+                <default>false</default>
+                <label>Security</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+    <visibleLines>4</visibleLines>
+</CustomField>

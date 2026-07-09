@@ -1,0 +1,457 @@
+<template>
+
+
+    <!-- Layout Container -->
+    <div class="layout">
+        
+        <!-- Left Sidebar Navigation -->
+        <div class={sidebarClass}>
+            <div class="sidebar-header">
+                <template if:false={isSidebarCollapsed}>
+                    <div class="logo-wrap">
+                        <div class="logo-icon-bg">
+                            <svg class="logo-svg" viewBox="0 0 24 24" width="16" height="16" style="fill: #ffffff;">
+                                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                            </svg>
+                        </div>
+                        <div class="logo-text">
+                            <div class="logo-title">DevOps Platform</div>
+                            <div class="logo-subtitle">for Salesforce</div>
+                        </div>
+                    </div>
+                </template>
+                <lightning-button-icon 
+                    icon-name={sidebarToggleIcon} 
+                    alternative-text="Toggle Navigation" 
+                    onclick={toggleSidebar} 
+                    variant="bare"
+                    class="toggle-btn">
+                </lightning-button-icon>
+            </div>
+            
+            <template for:each={navItems} for:item="item">
+                <div key={item.name} class={item.liClass} data-name={item.name} onclick={handleNavSelect}>
+                    <lightning-icon icon-name={item.icon} size="x-small" class="ico"></lightning-icon>
+                    <template if:false={isSidebarCollapsed}>
+                        <span class="nav-label">{item.label}</span>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main">
+            
+            <!-- Page Heading -->
+            <div class="page-heading">
+                <div>
+                    <h1>{currentTabLabel}</h1>
+                </div>
+                <template if:true={isDashboardOrDeployment}>
+                    <button class="btn-primary">+ New Deployment</button>
+                </template>
+            </div>
+
+            <!-- 1. DASHBOARD PANEL -->
+            <template if:true={showDashboardView}>
+                <!-- 5 Stats Row -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-label">Repository</div>
+                        <div class="stat-value">{stats.repository}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Current Release</div>
+                        <div class="stat-value">
+                            {stats.currentReleaseVersion}
+                            <span class="badge-mini">Production</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Pipeline Status</div>
+                        <div class="stat-value" style="color:#0176d3;">{stats.pipelineStatus}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Open PRs</div>
+                        <div class="stat-value">{stats.openPrCount} <span class="unit">pull requests</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Open Deployments</div>
+                        <div class="stat-value">{stats.openDeploymentCount} <span class="unit">in progress</span></div>
+                    </div>
+                </div>
+
+                <!-- Live Pipeline Stepper -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Live Pipeline</h3>
+                        <a href="javascript:void(0);">View All</a>
+                    </div>
+                    <div class="card-body">
+                        <template if:true={hasPipeline}>
+                            <div class="pipeline-track">
+                                <template for:each={pipelineSteps} for:item="step">
+                                    <div key={step.name} class={step.class}>
+                                        <div class="p-circle">
+                                            <template if:true={step.isCompleted}>✓</template>
+                                            <template if:false={step.isCompleted}>
+                                                <template if:true={step.isRunning}>●</template>
+                                                <template if:false={step.isRunning}>{step.orderIndex}</template>
+                                            </template>
+                                        </div>
+                                        <div class="p-label">{step.label}</div>
+                                        <div class="p-time">{step.status}</div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={hasPipeline}>
+                            <div class="slds-align_absolute-center slds-p-around_large slds-text-color_weak" style="font-size: 13px; border: 1px dashed #dddbda; border-radius:4px; min-height: 100px;">
+                                No active pipeline found for this project.
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Content Grid (Tables & Activity Feed) -->
+                <div class="content-grid">
+                    
+                    <!-- Left Column (Tables) -->
+                    <div class="col-main">
+                        
+                        <!-- Live Deployments Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Live Deployments</h3>
+                                <a href="javascript:void(0);">View All</a>
+                            </div>
+                            <div class="card-body" style="padding-top:4px;">
+                                <template if:true={hasDeployments}>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>User Story</th>
+                                                <th>Target Org</th>
+                                                <th>Status</th>
+                                                <th style="width:160px;">Progress</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={liveDeployments} for:item="dep">
+                                                <tr key={dep.Id}>
+                                                    <td>
+                                                        <div class="cell-title">
+                                                            <a href="javascript:void(0);" onclick={handleDashboardRecordNavigate} data-id={dep.Id} data-object="Deployment_Request__c">{dep.Name}</a>
+                                                        </div>
+                                                        <div class="cell-sub">{dep.Started_By__c}</div>
+                                                    </td>
+                                                    <td>{dep.envName}</td>
+                                                    <td><span class={dep.customBadgeClass}>{dep.statusText}</span></td>
+                                                    <td>
+                                                        <div class="progress-wrap">
+                                                            <div class="progress-fill" style={dep.progressFillStyle}></div>
+                                                        </div>
+                                                        <span class="progress-pct">{dep.progressText}</span>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template if:false={hasDeployments}>
+                                    <div class="slds-align_absolute-center slds-p-around_large slds-text-color_weak" style="font-size: 13px; border: 1px dashed #dddbda; border-radius:4px; min-height: 100px;">
+                                        No recent deployments found.
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Live Promotions Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Live Promotions</h3>
+                                <a href="javascript:void(0);">View All</a>
+                            </div>
+                            <div class="card-body" style="padding-top:4px;">
+                                <template if:true={hasPromotions}>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>User Story</th>
+                                                <th>Promotion Path</th>
+                                                <th>Requested By</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={livePromotions} for:item="promo">
+                                                <tr key={promo.Id}>
+                                                    <td class="cell-title">
+                                                        <a href="javascript:void(0);" onclick={handleDashboardRecordNavigate} data-id={promo.Id} data-object="Promotion__c">{promo.Name}</a>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flow">
+                                                            <span class="env">{promo.sourceEnv}</span>
+                                                            <span class="arrow">→</span>
+                                                            <span class="env">{promo.targetEnv}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>{promo.Triggered_By__c}</td>
+                                                    <td><span class={promo.customBadgeClass}>{promo.Status__c}</span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template if:false={hasPromotions}>
+                                    <div class="slds-align_absolute-center slds-p-around_large slds-text-color_weak" style="font-size: 13px; border: 1px dashed #dddbda; border-radius:4px; min-height: 100px;">
+                                        No recent promotions found.
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Live Releases Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Live Releases</h3>
+                                <a href="javascript:void(0);">View All</a>
+                            </div>
+                            <div class="card-body" style="padding-top:4px;">
+                                <template if:true={hasReleases}>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Version</th>
+                                                <th>Environment</th>
+                                                <th>Deployed On</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={liveReleases} for:item="rel">
+                                                <tr key={rel.Id}>
+                                                    <td class="cell-title">
+                                                        <a href="javascript:void(0);" onclick={handleDashboardRecordNavigate} data-id={rel.Id} data-object="Release__c">{rel.Version__c}</a>
+                                                    </td>
+                                                    <td>{rel.Release_Name__c}</td>
+                                                    <td>{rel.releaseDateFormatted}</td>
+                                                    <td><span class={rel.customBadgeClass}>{rel.Status__c}</span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template if:false={hasReleases}>
+                                    <div class="slds-align_absolute-center slds-p-around_large slds-text-color_weak" style="font-size: 13px; border: 1px dashed #dddbda; border-radius:4px; min-height: 100px;">
+                                        No recent releases found.
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column (Activity Feed) -->
+                    <div class="col-side">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Activity Feed</h3>
+                                <a href="javascript:void(0);">View All</a>
+                            </div>
+                            <div class="card-body" style="padding-top:4px;">
+                                <template if:true={hasActivities}>
+                                    <template for:each={activityFeed} for:item="event">
+                                        <div class="activity-item" key={event.Id}>
+                                            <div class={event.customIconClass}>{event.iconText}</div>
+                                            <div class="act-body">
+                                                <div class="act-title">{event.title}</div>
+                                                <div class="act-desc">{event.description}</div>
+                                                <div class="act-time">{event.timeText}</div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template if:false={hasActivities}>
+                                    <div class="slds-align_absolute-center slds-p-around_large slds-text-color_weak" style="font-size: 12px; text-align: center; border: 1px dashed #dddbda; border-radius:4px; min-height: 100px;">
+                                        No recent activity found.
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </template>
+
+            <!-- 2. DEPLOYMENT CENTER PANEL -->
+            <template if:true={showDeploymentView}>
+                <div class="card slds-p-around_medium" style="background-color: #ffffff; border: 1px solid #dddbda; border-radius: 8px;">
+                    <!-- Row 1: Source & Target -->
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col">
+                            <lightning-combobox
+                                label="Source Org"
+                                value={sourceOrg}
+                                options={environmentOptions}
+                                onchange={handleSourceChange}>
+                            </lightning-combobox>
+                        </div>
+                        <div class="slds-col">
+                            <lightning-combobox
+                                label="Target Org"
+                                value={targetOrg}
+                                options={environmentOptions}
+                                onchange={handleTargetChange}>
+                            </lightning-combobox>
+                        </div>
+                    </div>
+
+                    <template if:true={showDeploymentSection}>
+                        <!-- Row 2: Project & User Story -->
+                        <div class="slds-grid slds-gutters slds-m-top_medium">
+                            <div class="slds-col">
+                                <lightning-combobox
+                                    label="Project"
+                                    value={projectId}
+                                    options={projectOptions}
+                                    onchange={handleProjectChange}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col">
+                                <lightning-combobox
+                                    label="User Story"
+                                    value={userStoryId}
+                                    options={userStoryOptions}
+                                    onchange={handleUserStoryChange}>
+                                </lightning-combobox>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Metadata Type & Search -->
+                        <div class="slds-grid slds-gutters slds-m-top_medium">
+                            <div class="slds-col slds-size_1-of-3">
+                                <lightning-combobox
+                                    label="Metadata Type"
+                                    value={selectedMetadataType}
+                                    options={metadataTypes}
+                                    onchange={handleMetadataTypeChange}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_2-of-3">
+                                <lightning-input
+                                    type="search"
+                                    label="Search Metadata"
+                                    value={searchKeyword}
+                                    onchange={handleSearch}>
+                                </lightning-input>
+                            </div>
+                        </div>
+
+                        <!-- Row 4: Columns -->
+                        <div class="slds-grid slds-gutters slds-m-top_medium">
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-card title="Available Components">
+                                    <div class="slds-box slds-scrollable_y" style="height:400px; min-height:400px;">
+                                        <template for:each={filteredMetadataList} for:item="item">
+                                            <div
+                                                key={item.value}
+                                                data-label={item.label}
+                                                data-value={item.value}
+                                                onclick={handleMetadataSelect}
+                                                class="slds-p-around_small slds-border_bottom slds-theme_default slds-truncate"
+                                                style="cursor:pointer;">
+                                                {item.label}
+                                            </div>
+                                        </template>
+                                    </div>
+                                </lightning-card>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-card title="Selected Components">
+                                    <div class="slds-box slds-scrollable_y" style="height:400px; min-height:400px;">
+                                        <template for:each={selectedComponents} for:item="item">
+                                            <div key={item.value} class="slds-grid slds-grid_align-spread slds-p-around_small slds-border_bottom">
+                                                <div class="slds-truncate" title={item.label}>{item.label}</div>
+                                                <div>
+                                                    <lightning-button-icon
+                                                        icon-name="utility:close"
+                                                        alternative-text="Remove"
+                                                        data-value={item.value}
+                                                        onclick={handleRemoveComponent}
+                                                        variant="bare">
+                                                    </lightning-button-icon>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </lightning-card>
+                            </div>
+                        </div>
+
+                        <!-- Row 5: Actions -->
+                        <div class="slds-m-top_large slds-align_absolute-center">
+                            <lightning-button label="Compare" variant="brand" onclick={handleCompare}></lightning-button>
+                            <lightning-button label="Validate" variant="neutral" class="slds-m-left_small" onclick={handleValidate}></lightning-button>
+                            <lightning-button label="Deploy" variant="brand" class="slds-m-left_small" onclick={handleDeploy}></lightning-button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- 3. GENERIC OBJECT LIST VIEWS -->
+            <template if:true={showGenericListView}>
+                <div class="card slds-p-around_medium" style="background-color: #ffffff; border: 1px solid var(--card-border); border-radius: 8px;">
+                    <div class="slds-grid slds-grid_align-spread slds-m-bottom_medium">
+                        <h2 class="slds-text-heading_medium" style="font-weight: bold; font-size:16px;">{listViewTitle}</h2>
+                        <lightning-input type="search" placeholder="Search records..." variant="label-hidden" style="width: 250px;"></lightning-input>
+                    </div>
+                    <template if:true={hasGenericRecords}>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <template for:each={genericHeaders} for:item="hdr">
+                                        <th scope="col" key={hdr}>{hdr}</th>
+                                    </template>
+                                    <th scope="col" style="width: 120px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={genericRecords} for:item="rec">
+                                    <tr key={rec.Id}>
+                                        <td class="cell-title">
+                                            <a href="javascript:void(0);" onclick={handleRecordNavigate} data-id={rec.Id}>{rec.Name}</a>
+                                        </td>
+                                        <template for:each={rec.displayColumns} for:item="col">
+                                            <td key={col.key}>
+                                                <template if:true={col.isBadge}>
+                                                    <span class={col.badgeClass}>{col.value}</span>
+                                                </template>
+                                                <template if:false={col.isBadge}>
+                                                    {col.value}
+                                                </template>
+                                            </td>
+                                        </template>
+                                        <td>
+                                            <lightning-button-menu alternative-text="Show actions" menu-alignment="right" variant="border-filled" icon-size="x-small" onselect={handleMenuSelect} data-id={rec.Id}>
+                                                <lightning-menu-item value="edit" label="Edit" icon-name="utility:edit"></lightning-menu-item>
+                                                <lightning-menu-item value="delete" label="Delete" icon-name="utility:delete"></lightning-menu-item>
+                                                <lightning-menu-item value="sync" label="Sync" icon-name="utility:sync"></lightning-menu-item>
+                                            </lightning-button-menu>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                    <template if:false={hasGenericRecords}>
+                        <div class="slds-align_absolute-center slds-p-around_xx-large slds-text-color_weak" style="font-size: 14px; border: 1px dashed var(--card-border); border-radius: 8px; min-height: 150px;">
+                            No records found in this {listViewTitle} view.
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+        </div>
+    </div>
+</template>

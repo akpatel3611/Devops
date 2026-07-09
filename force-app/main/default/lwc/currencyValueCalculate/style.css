@@ -1,0 +1,33 @@
+.myClass{
+    /* background: linear-gradient(135deg, #0b7cec, #16232e);*/
+    border-radius: 15px;
+    box-shadow: 0 6px 20px rgba(45, 3, 197, 0.15);
+}
+.highlight-input {
+    width: 30px !important;
+    border: 4px solid #21313f;
+    border-radius: 0.5rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+.amount-section {
+    background: #1366e2;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+.swap-icon {
+    background: #f4f6f9;
+    border-radius: 50%;
+    padding: 0.5rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+.small-input {
+    width: 30% !important;
+    font-size: 0.8rem;
+}
+
+.swap-icon {
+    margin-top: 1.5rem;
+    transform: scale(1.2);
+}

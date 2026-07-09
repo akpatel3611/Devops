@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>View_All</fullName>
+    <columns>MasterLabel</columns>
+    <columns>DeveloperName</columns>
+    <columns>Case_Category__c</columns>
+    <columns>Case_status__c</columns>
+    <columns>Case_Sub_Status__c</columns>
+    <columns>Case_Sub_Type__c</columns>
+    <columns>Case_Type__c</columns>
+    <columns>Case_Reason__c</columns>
+    <columns>Default_Charge_Amount__c</columns>
+    <columns>Default_Charge_Type__c</columns>
+    <filterScope>Everything</filterScope>
+    <label>View All</label>
+</ListView>

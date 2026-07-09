@@ -1,0 +1,140 @@
+.export-modal {
+  max-width: 64rem;
+  width: 92%;
+}
+
+.modal-header {
+  position: relative;
+  padding-right: 2.2rem;
+}
+
+.modal-close-icon {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.45rem;
+}
+
+.modal-subtitle {
+  margin: 0.35rem 0 0;
+  color: #514f4d;
+  font-size: 0.74rem;
+}
+
+.modal-body {
+  min-height: 20rem;
+}
+
+.loading-state {
+  min-height: 18rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-banner {
+  margin-bottom: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #ffd2cc;
+  border-radius: 0.25rem;
+  background: #fff6f5;
+  color: #8a1f11;
+  font-size: 0.76rem;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 20rem);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-panel {
+  border: 1px solid #dddbda;
+  border-radius: 0.25rem;
+  background: #ffffff;
+}
+
+.panel-title {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #dddbda;
+  color: #3e3e3c;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.checkbox-list {
+  max-height: 17rem;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+}
+
+.checkbox-list lightning-input {
+  display: block;
+}
+
+.checkbox-list lightning-input + lightning-input {
+  margin-top: 0.25rem;
+}
+
+.format-selector {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 1rem;
+}
+
+.format-option {
+  min-height: 4rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #c9c7c5;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #181818;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.format-option:hover {
+  border-color: #0176d3;
+  background: #eef4ff;
+}
+
+.format-option_selected {
+  border-color: #0176d3;
+  background: #eef4ff;
+  color: #014486;
+}
+
+.preview-panel {
+  overflow: hidden;
+}
+
+.preview-text {
+  max-height: 18rem;
+  margin: 0;
+  overflow: auto;
+  padding: 1rem;
+  color: #181818;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  font-family:
+    SFMono-Regular,
+    Consolas,
+    "Liberation Mono",
+    Menlo,
+    Courier,
+    monospace;
+}
+
+@media (max-width: 960px) {
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .format-selector {
+    grid-template-columns: 1fr;
+  }
+}

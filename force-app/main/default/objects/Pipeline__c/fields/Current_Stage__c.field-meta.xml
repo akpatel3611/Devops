@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Current_Stage__c</fullName>
+    <label>Current Stage</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Waiting</fullName>
+                <default>false</default>
+                <label>Waiting</label>
+            </value>
+            <value>
+                <fullName>DEV → QA</fullName>
+                <default>false</default>
+                <label>DEV → QA</label>
+            </value>
+            <value>
+                <fullName>QA Approval</fullName>
+                <default>false</default>
+                <label>QA Approval</label>
+            </value>
+            <value>
+                <fullName>QA → UAT</fullName>
+                <default>false</default>
+                <label>QA → UAT</label>
+            </value>
+            <value>
+                <fullName>UAT Approval</fullName>
+                <default>false</default>
+                <label>UAT Approval</label>
+            </value>
+            <value>
+                <fullName>UAT → Production</fullName>
+                <default>false</default>
+                <label>UAT → Production</label>
+            </value>
+            <value>
+                <fullName>Completed</fullName>
+                <default>false</default>
+                <label>Completed</label>
+            </value>
+            <value>
+                <fullName>Failed</fullName>
+                <default>false</default>
+                <label>Failed</label>
+            </value>
+            <value>
+                <fullName>Rollback</fullName>
+                <default>false</default>
+                <label>Rollback</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

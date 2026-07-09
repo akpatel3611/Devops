@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>BlockedForCustomer__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>For capturing the Blocked For Customer of the Unit</description>
+    <label>Blocked For Customer</label>
+    <referenceTo>Account</referenceTo>
+    <relationshipLabel>Units</relationshipLabel>
+    <relationshipName>PropertiesBlockedForCustomer</relationshipName>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

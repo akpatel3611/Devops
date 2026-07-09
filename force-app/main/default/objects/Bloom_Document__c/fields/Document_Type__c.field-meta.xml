@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Document_Type__c</fullName>
+    <label>Document Type</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Emirates ID Front</fullName>
+                <default>false</default>
+                <label>Emirates ID Front</label>
+            </value>
+            <value>
+                <fullName>Emirates ID Back</fullName>
+                <default>false</default>
+                <label>Emirates ID Back</label>
+            </value>
+            <value>
+                <fullName>EJARI</fullName>
+                <default>false</default>
+                <label>EJARI</label>
+            </value>
+            <value>
+                <fullName>Tawtheeq</fullName>
+                <default>false</default>
+                <label>Tawtheeq</label>
+            </value>
+            <value>
+                <fullName>Title Deed</fullName>
+                <default>false</default>
+                <label>Title Deed</label>
+            </value>
+            <value>
+                <fullName>Passport</fullName>
+                <default>false</default>
+                <label>Passport</label>
+            </value>
+            <value>
+                <fullName>Tourism License</fullName>
+                <default>false</default>
+                <label>Tourism License</label>
+            </value>
+            <value>
+                <fullName>Unit Permit</fullName>
+                <default>false</default>
+                <label>Unit Permit</label>
+            </value>
+            <value>
+                <fullName>Trade License</fullName>
+                <default>false</default>
+                <label>Trade License</label>
+            </value>
+            <value>
+                <fullName>Company ID</fullName>
+                <default>false</default>
+                <label>Company ID</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

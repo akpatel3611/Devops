@@ -1,0 +1,111 @@
+<template>
+  <div class="section-shell">
+    <div class="section-header slds-page-header slds-page-header_joined">
+      <div class="section-heading">
+        <p class="section-kicker">Object Manager</p>
+        <div class="section-title-row">
+          <h1 class="section-title">{sectionLabel}</h1>
+          <template if:true={hasDataTable}>
+            <span class="count-badge">{rowCountLabel}</span>
+          </template>
+        </div>
+        <p class="section-subtitle">{objectName}</p>
+      </div>
+
+      <template if:true={showSearch}>
+        <div class="section-tools">
+          <input
+            type="text"
+            class="section-search"
+            placeholder="Quick search"
+            value={searchTerm}
+            oninput={handleSearch}
+          />
+        </div>
+      </template>
+    </div>
+
+    <template if:true={isLoading}>
+      <div class="placeholder-card">
+        <p class="placeholder-text">Loading metadata from Salesforce...</p>
+      </div>
+    </template>
+
+    <template if:true={hasDataTable}>
+      <div class="table-card slds-card">
+        <div class="table-scroll">
+          <table
+            class={tableClass}
+          >
+            <thead>
+              <tr>
+                <template for:each={tableColumns} for:item="column">
+                  <th key={column.key} scope="col">{column.label}</th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <template if:true={hasTableRows}>
+                <template for:each={tableRows} for:item="row">
+                  <tr key={row._key}>
+                    <template for:each={row.cells} for:item="cell">
+                      <td key={cell.key}>
+                        <template if:true={cell.isActionCell}>
+                          <button
+                            type="button"
+                            class={cell.actionClass}
+                            data-url={cell.actionUrl}
+                            onclick={handleActionClick}
+                            disabled={cell.isDisabled}
+                          >
+                            {cell.value}
+                          </button>
+                        </template>
+                        <template if:false={cell.isActionCell}>
+                          <template if:true={cell.href}>
+                            <a
+                              href={cell.href}
+                              class={cell.linkClass}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              >{cell.value}</a
+                            >
+                          </template>
+                          <template if:false={cell.href}>
+                            <span class={cell.textClass}> {cell.value} </span>
+                          </template>
+                        </template>
+                      </td>
+                    </template>
+                  </tr>
+                </template>
+              </template>
+
+              <template if:false={hasTableRows}>
+                <tr>
+                  <td colspan={columnCount} class="empty-row">
+                    {emptyStateMessage}
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <template if:true={hasMessage}>
+      <div class="placeholder-card">
+        <p class="placeholder-text">{messageText}</p>
+      </div>
+    </template>
+
+    <template if:true={error}>
+      <div class="placeholder-card">
+        <p class="placeholder-text">
+          Unable to load metadata for this section.
+        </p>
+      </div>
+    </template>
+  </div>
+</template>

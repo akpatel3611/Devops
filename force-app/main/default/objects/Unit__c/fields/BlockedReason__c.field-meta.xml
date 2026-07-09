@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>BlockedReason__c</fullName>
+    <description>For capturing the Blocked Reason of the Unit</description>
+    <label>Blocked Reason</label>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>ONLINE</fullName>
+                <default>false</default>
+                <label>ONLINE</label>
+            </value>
+            <value>
+                <fullName>VIP SALE</fullName>
+                <default>false</default>
+                <label>VIP SALE</label>
+            </value>
+            <value>
+                <fullName>SALES</fullName>
+                <default>false</default>
+                <label>SALES</label>
+            </value>
+            <value>
+                <fullName>BULK SALE</fullName>
+                <default>false</default>
+                <label>BULK SALE</label>
+            </value>
+            <value>
+                <fullName>CANCELLATION-LEGAL RESTRICTION</fullName>
+                <color>#FF0000</color>
+                <default>false</default>
+                <label>CANCELLATION-LEGAL RESTRICTION</label>
+            </value>
+            <value>
+                <fullName>MGMT SALES</fullName>
+                <default>false</default>
+                <label>MGMT SALES</label>
+            </value>
+            <value>
+                <fullName>DEV RESTRICTION</fullName>
+                <color>#FF0000</color>
+                <default>false</default>
+                <label>DEV RESTRICTION</label>
+            </value>
+            <value>
+                <fullName>MEMO</fullName>
+                <default>false</default>
+                <label>MEMO</label>
+            </value>
+            <value>
+                <fullName>BROKER</fullName>
+                <default>false</default>
+                <label>BROKER</label>
+            </value>
+            <value>
+                <fullName>Assignment Request</fullName>
+                <default>false</default>
+                <label>Assignment Request</label>
+            </value>
+            <value>
+                <fullName>SALES CANCELLATION</fullName>
+                <default>false</default>
+                <label>SALES CANCELLATION</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

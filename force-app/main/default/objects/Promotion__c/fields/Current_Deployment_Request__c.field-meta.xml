@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Current_Deployment_Request__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Current Deployment Request</label>
+    <referenceTo>Deployment_Request__c</referenceTo>
+    <relationshipLabel>Promotions (Current Deployment)</relationshipLabel>
+    <relationshipName>Promotions_Current_Deployment</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

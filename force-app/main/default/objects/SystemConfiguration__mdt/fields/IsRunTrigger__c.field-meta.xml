@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>IsRunTrigger__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Field is to capture whether the object trigger has to be executed or not</description>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <inlineHelpText>Field is to capture whether the object trigger has to be executed or not</inlineHelpText>
+    <label>Is Run Trigger</label>
+    <type>Checkbox</type>
+</CustomField>

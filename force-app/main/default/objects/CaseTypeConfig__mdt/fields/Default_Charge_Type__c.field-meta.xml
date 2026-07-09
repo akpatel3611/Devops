@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Default_Charge_Type__c</fullName>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Default Charge Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>ADM Fee</fullName>
+                <default>true</default>
+                <label>ADM Fee</label>
+            </value>
+            <value>
+                <fullName>Service Charge</fullName>
+                <default>false</default>
+                <label>Service Charge</label>
+            </value>
+            <value>
+                <fullName>Late Payment Charges</fullName>
+                <default>false</default>
+                <label>Late Payment Charges</label>
+            </value>
+            <value>
+                <fullName>ADM Admin Fee</fullName>
+                <default>false</default>
+                <label>ADM Admin Fee</label>
+            </value>
+            <value>
+                <fullName>Transfer Fee</fullName>
+                <default>false</default>
+                <label>Transfer Fee</label>
+            </value>
+            <value>
+                <fullName>Admin Charges</fullName>
+                <default>false</default>
+                <label>Admin Charges</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

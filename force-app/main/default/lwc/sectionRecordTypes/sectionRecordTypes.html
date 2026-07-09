@@ -1,0 +1,77 @@
+<template>
+  <div class="section-shell">
+    <div class="section-header slds-page-header slds-page-header_joined">
+      <div class="section-heading">
+        <p class="section-kicker">Object Manager</p>
+        <div class="section-title-row">
+          <h1 class="section-title">Record Types</h1>
+          <span class="count-badge">{recordTypeCountLabel}</span>
+        </div>
+        <p class="section-subtitle">{objectName}</p>
+      </div>
+
+      <div class="section-tools">
+        <input
+          type="text"
+          class="section-search"
+          placeholder="Quick search"
+          value={searchTerm}
+          oninput={handleSearch}
+        />
+      </div>
+    </div>
+
+    <div class="table-card slds-card">
+      <div class="table-scroll">
+        <table
+          class="record-type-table slds-table slds-table_cell-buffer slds-table_bordered slds-no-row-hover"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Record Type Name</th>
+              <th scope="col">Developer Name</th>
+              <th scope="col">Is Active</th>
+              <th scope="col">Is Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template if:true={hasRecordTypes}>
+              <template for:each={normalizedRecordTypes} for:item="recordType">
+                <tr key={recordType.developerName}>
+                  <td>
+                    <a
+                      href={recordType.recordTypeUrl}
+                      class="table-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{recordType.name}</a
+                    >
+                  </td>
+                  <td>
+                    <a
+                      href={recordType.recordTypeUrl}
+                      class="table-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{recordType.developerName}</a
+                    >
+                  </td>
+                  <td>{recordType.activeLabel}</td>
+                  <td>{recordType.defaultLabel}</td>
+                </tr>
+              </template>
+            </template>
+
+            <template if:false={hasRecordTypes}>
+              <tr>
+                <td colspan="4" class="empty-row">
+                  No record types match the current filter.
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>

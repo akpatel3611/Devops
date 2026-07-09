@@ -1,0 +1,51 @@
+<template>
+    <div class="slds-m-horizontal_xx-small">
+        <lightning-card title="Contact Search" icon-name="standard:contact_list">
+            <div class="slds-p-around_medium">
+                <lightning-input type="text" label="Search Contacts" placeholder="Enter contact name to search" 
+                    onchange={handleSearch} value={searchKey}>
+                </lightning-input>
+            </div>
+            
+            <template if:true={searchResult}>
+                <div class="slds-p-around_small">
+                    <ul>
+                        <template for:each={searchResult} for:item="contact">
+                            <li key={contact.Id} class="slds-p-vertical_xx-small">
+                                <lightning-button label={contact.Name} value={contact.Id} onclick={handleContactSelect}
+                                    variant="base">
+                                </lightning-button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+
+            <template if:true={contactDetails.Id}>
+                <div class="slds-p-around_medium ">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Contact Details</h3>
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-2">
+                            <p><strong>Name:</strong> {contactDetails.Name}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <p><strong>Email:</strong> {contactDetails.Email}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <p><strong>Phone:</strong> {contactDetails.Phone}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <p><strong>Account:</strong> {contactDetails.Account.Name}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <p><strong>Title:</strong> {contactDetails.Title}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <p><strong>Department:</strong> {contactDetails.Department}</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </lightning-card>
+    </div>
+</template>

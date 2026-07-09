@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Assigned_Access_Card__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Assigned Access Card</label>
+    <referenceTo>Access_Card__c</referenceTo>
+    <relationshipLabel>Assigned Access Card</relationshipLabel>
+    <relationshipName>Inventory_Assignments</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

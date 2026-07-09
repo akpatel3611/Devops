@@ -1,0 +1,43 @@
+/* Salesforce Color Variables */
+:host {
+    --salesforce-blue: #0176d3;
+    --salesforce-dark-blue: #0b5cab;
+    --salesforce-orange: #ff9a3c;
+    --salesforce-light-blue: #aacbff;
+    --salesforce-dark-gray: #3e3e3c;
+    --salesforce-light-gray: #f3f2f2;
+    --salesforce-white: #ffffff;
+    --salesforce-text: #080707;
+    --salesforce-shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* Main Header Styles */
+.main-header {
+    background: linear-gradient(135deg, var(--salesforce-blue) 0%, var(--salesforce-dark-blue) 100%);
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 70px;
+    box-shadow: 0 2px 4px var(--salesforce-shadow);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.logo a {
+    color: var(--salesforce-white);
+    text-decoration: none;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.logo em {
+    font-style: normal;
+    color: var(--salesforce-orange);
+}
+
+/* Add the rest of your CSS styles here following the same pattern */
+/* You'll need to convert all the CSS from your template to work within LWC */
