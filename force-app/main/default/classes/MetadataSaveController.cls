@@ -4,7 +4,10 @@ public with sharing class MetadataSaveController {
     public static void saveMetadataSelections(
         Id userStoryId,
         String metadataType,
-        List<String> metadataNames
+        List<String> metadataNames,
+        Id sourceEnvironmentId,
+        Id targetEnvironmentId,
+        Id releaseId
     ){
         if(userStoryId == null){
             throw new AuraHandledException(
@@ -16,6 +19,39 @@ public with sharing class MetadataSaveController {
             throw new AuraHandledException(
                 'No metadata selected'
             );
+        }
+
+        // Fetch User Story to update Source Environment
+        User_Story__c story = [
+            SELECT Id, Pipeline__c, Source_Environment__c 
+            FROM User_Story__c 
+            WHERE Id = :userStoryId 
+            LIMIT 1
+        ];
+        if (story.Source_Environment__c != sourceEnvironmentId) {
+            story.Source_Environment__c = sourceEnvironmentId;
+            update story;
+        }
+
+        // Check if there is an active Draft Deployment Request
+        List<Deployment_Request__c> existingRequests = [
+            SELECT Id 
+            FROM Deployment_Request__c 
+            WHERE User_Story__c = :userStoryId 
+            AND Status__c = 'Draft' 
+            LIMIT 1
+        ];
+
+        if (existingRequests.isEmpty()) {
+            Deployment_Request__c newReq = new Deployment_Request__c(
+                User_Story__c = userStoryId,
+                Source_Environment__c = sourceEnvironmentId,
+                Target_Environment__c = targetEnvironmentId,
+                Pipeline__c = story.Pipeline__c,
+                Release__c = releaseId,
+                Status__c = 'Draft'
+            );
+            insert newReq;
         }
 
         Set<String> existingMetadata = new Set<String>();
