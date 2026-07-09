@@ -141,7 +141,14 @@ export default class DeploymentDashboard extends LightningElement {
         });
     }
 
+    resetButtons() {
+        this.showSaveButton = true;
+        this.showValidateButton = false;
+        this.showDeployButton = false;
+    }
+
     handleSourceChange(event) {
+        this.resetButtons();
         
         this.sourceOrg =
             event.detail.value;
@@ -227,18 +234,19 @@ export default class DeploymentDashboard extends LightningElement {
 }
 
     handleTargetChange(event) {
-
+        this.resetButtons();
         this.targetOrg = event.detail.value;
     }
 
     handleMetadataTypeChange(event) {
-
+        this.resetButtons();
         this.selectedMetadataType = event.detail.value;
 
         this.loadMetadata();
     }
 
     handleReleaseChange(event) {
+        this.resetButtons();
         this.releaseId = event.detail.value;
     }
     
@@ -249,6 +257,7 @@ export default class DeploymentDashboard extends LightningElement {
     }
     
     handleUserStoryChange(event) {
+        this.resetButtons();
         this.userStoryId = event.detail.value;
     }
 
@@ -384,7 +393,7 @@ export default class DeploymentDashboard extends LightningElement {
             );
 
         if(!exists){
-
+            this.resetButtons();
             this.selectedComponents = [
                 ...this.selectedComponents,
                 {
@@ -411,7 +420,10 @@ export default class DeploymentDashboard extends LightningElement {
         saveMetadataSelections({
             userStoryId: this.userStoryId,
             metadataType: this.selectedMetadataType,
-            metadataNames: metadataNames
+            metadataNames: metadataNames,
+            sourceEnvironmentId: this.sourceOrg,
+            targetEnvironmentId: this.targetOrg,
+            releaseId: this.releaseId
         })
         .then(() => {
             const filePaths = this.selectedComponents.map(item => 
@@ -572,6 +584,7 @@ export default class DeploymentDashboard extends LightningElement {
     }
 
     handleRemoveComponent(event) {
+        this.resetButtons();
         const valueToRemove = event.currentTarget.dataset.value;
         this.selectedComponents = this.selectedComponents.filter(
             item => item.value !== valueToRemove

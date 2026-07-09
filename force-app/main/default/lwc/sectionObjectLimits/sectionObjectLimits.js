@@ -9,6 +9,7 @@ export default class SectionObjectLimits extends LightningElement {
 
     error;
 
+   // branch scan testing     
     @api
     get objectName() {
         return this._objectName;
