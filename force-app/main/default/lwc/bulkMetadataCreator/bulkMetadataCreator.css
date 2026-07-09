@@ -1,0 +1,600 @@
+:host {
+  --slds-c-card-color-background: #ffffff;
+  --slds-c-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
+  --slds-c-card-radius-border: 14px;
+  display: block;
+  font-family: "Salesforce Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.slds-box {
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.25s ease;
+}
+
+.slds-box:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.07);
+}
+
+.slds-theme_shade {
+  background-color: #f8fafc !important;
+  border-color: #eef2f7 !important;
+}
+
+.slds-text-heading_small {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: 0;
+}
+
+.slds-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.slds-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.slds-table th {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 12px 14px;
+  white-space: nowrap;
+}
+
+.slds-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.slds-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.slds-scrollable_x {
+  /* overflow: visible lets lightning-combobox dropdowns escape the container.
+     Setting overflow-x: auto would also clip overflow-y per CSS spec,
+     trapping the absolute-positioned dropdown inside and hiding it. */
+  overflow: visible;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-delete lightning-button-icon {
+  --slds-c-icon-color-foreground-default: #dc2626;
+  --slds-c-button-color-border: #fee2e2;
+  --slds-c-button-color-border-hover: #fca5a5;
+  --slds-c-button-color-background-hover: #fef2f2;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  color: #94a3b8;
+  gap: 0.5rem;
+}
+
+.empty-state-icon {
+  font-size: 2rem;
+  opacity: 0.4;
+}
+
+.empty-state-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.deploy-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.75rem;
+}
+
+.slds-input,
+.slds-select {
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  color: #1e293b;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: #fff;
+  height: 1.875rem; /* Compact height aligning with lightning-input */
+}
+
+.slds-input:focus,
+.slds-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.record-col-header {
+  font-size: 0.6875rem;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.record-col-subtitle {
+  font-size: 0.65rem;
+  font-weight: 400;
+  text-transform: none;
+  color: #64748b;
+}
+
+lightning-spinner {
+  position: fixed !important;
+  z-index: 9999;
+}
+
+.input-shell {
+  position: relative;
+  z-index: 10;
+}
+
+.custom-dropdown-container {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 150px; /* Shorter dropdown height to prevent scrollbars */
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+  margin-top: 4px;
+}
+
+.custom-dropdown-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.custom-dropdown-item {
+  padding: 6px 10px; /* More compact option padding */
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.custom-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.custom-dropdown-item:hover {
+  background-color: #f1f5f9;
+}
+
+.custom-dropdown-label {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #1e293b;
+}
+
+.custom-dropdown-value {
+  font-size: 0.6875rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.custom-dropdown-no-results {
+  padding: 14px;
+  color: #94a3b8;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.row-number-cell {
+  color: #475569;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.row-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 11rem;
+}
+
+.row-status-success {
+  color: #166534;
+}
+
+.row-status-error {
+  color: #b91c1c;
+}
+
+.row-status-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.row-status-message {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #475569;
+}
+
+.deployment-modal {
+  max-width: 78rem;
+  width: 92vw;
+}
+
+.result-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.summary-card {
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  padding: 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.summary-value {
+  font-size: 1rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.summary-message {
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.status-pill-success {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-pill-error {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.results-toolbar {
+  align-items: flex-end;
+}
+
+.results-table-shell {
+  overflow-x: auto; /* explicit scroll for the results table - not affected by parent fix above */
+  overflow-y: auto;
+  max-height: 26rem;
+}
+
+.message-cell {
+  min-width: 20rem;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .deployment-modal {
+    width: 96vw;
+  }
+
+  .row-status {
+    min-width: 9rem;
+  }
+}
+
+/* ─── FLS Assignment Panel ──────────────────────────────────────────────── */
+
+.fls-section {
+  background: #eef4ff;
+  border: 1px solid #c7d9f9;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  overflow: visible;
+}
+
+.fls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  gap: 1rem;
+  border-bottom: 1px solid #d1e0fb;
+}
+
+.fls-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fls-shield-icon {
+  --slds-c-icon-color-foreground-default: #2563eb;
+}
+
+.fls-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-shrink: 0;
+}
+
+.fls-toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.fls-body {
+  padding: 1rem;
+}
+
+.fls-profile-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+.fls-profile-selector {
+  position: relative;
+}
+
+.fls-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  min-height: 2.2rem;
+  cursor: text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fls-chips-row:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.fls-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem 0.15rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fls-chip-remove {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.1rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.fls-chip-remove:hover {
+  color: #ffffff;
+}
+
+.fls-profile-input {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.2rem 0.25rem;
+  flex: 1;
+  min-width: 9rem;
+  font-size: 0.8125rem;
+  background: transparent;
+}
+
+.fls-profile-input:focus {
+  outline: none;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.fls-table-container {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #c7d9f9;
+  margin-top: 0.75rem;
+}
+
+.fls-permission-table thead th {
+  background-color: #dbeafe;
+  color: #1e40af;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-bottom: 1px solid #bfdbfe;
+}
+
+.fls-profile-name-cell {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #1e293b;
+}
+
+.fls-note {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.fls-empty-profiles {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  color: #64748b;
+  font-size: 0.8125rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  border: 1px dashed #93c5fd;
+  margin-top: 0.5rem;
+}
+
+/* Profile dropdown opens UPWARD — FLS panel is always near page bottom,
+   so opening downward would push past the viewport and trigger page scroll */
+.fls-profile-selector .custom-dropdown-container {
+  top: 100%;
+  bottom: auto;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+/* FLS Results inside modal */
+.fls-results-section {
+  background: #f0f7ff;
+  border-top: 2px solid #bfdbfe;
+}
+
+.fls-results-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #1e40af;
+  margin-bottom: 0.75rem !important;
+}
+
+.fls-result-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fls-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+}
+
+.fls-result-icon {
+  font-size: 1.1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 1.4rem;
+  text-align: center;
+}
+
+.fls-result-item:has(.status-pill-success) .fls-result-icon {
+  color: #166534;
+}
+
+.fls-result-item:has(.status-pill-error) .fls-result-icon {
+  color: #b91c1c;
+}
+
+.fls-result-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.fls-result-profile {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.fls-result-detail {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

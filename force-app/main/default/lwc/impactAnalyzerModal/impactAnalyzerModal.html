@@ -1,0 +1,113 @@
+<template>
+  <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+    <div class="slds-modal__container impact-modal">
+      <header class="slds-modal__header modal-header">
+        <lightning-button-icon
+          icon-name="utility:close"
+          alternative-text="Close"
+          variant="bare"
+          onclick={handleCancel}
+          class="modal-close-icon"
+        ></lightning-button-icon>
+
+        <div class="modal-title-row">
+          <div class="modal-icon">
+            <lightning-icon
+              icon-name="utility:warning"
+              alternative-text="Warning"
+              size="x-small"
+            ></lightning-icon>
+          </div>
+          <div>
+            <h2 class="slds-modal__title">{title}</h2>
+            <p class="modal-subtitle">{subtitle}</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="slds-modal__content modal-body slds-p-around_medium">
+        <template if:true={isLoading}>
+          <div class="summary-grid">
+            <div class="summary-card summary-card_loading"></div>
+            <div class="summary-card summary-card_loading"></div>
+            <div class="summary-card summary-card_loading"></div>
+          </div>
+
+          <div class="loading-state">
+            <lightning-spinner
+              alternative-text="Analyzing dependencies"
+              size="small"
+            ></lightning-spinner>
+            <span>Analyzing dependencies...</span>
+          </div>
+        </template>
+
+        <template if:false={isLoading}>
+          <template if:true={errorMessage}>
+            <div class="error-state">
+              <div class="error-banner">{errorMessage}</div>
+              <lightning-button
+                label="Retry"
+                variant="neutral"
+                onclick={handleRetry}
+              ></lightning-button>
+            </div>
+          </template>
+
+          <template if:false={errorMessage}>
+            <div class="summary-grid">
+              <template for:each={summaryCards} for:item="card">
+                <div key={card.key} class={card.className}>
+                  <div class="summary-label">{card.label}</div>
+                  <div class="summary-value">{card.count}</div>
+                </div>
+              </template>
+            </div>
+
+            <div class="section-label">Dependencies</div>
+
+            <template if:true={hasDependencies}>
+              <div class="dependency-list">
+                <template for:each={dependencyItems} for:item="item">
+                  <div key={item.key} class={item.rowClass}>
+                    <div class="dependency-type">{item.typeCode}</div>
+                    <div class="dependency-copy">
+                      <div class="dependency-name">{item.name}</div>
+                      <div class="dependency-description">{item.description}</div>
+                    </div>
+                    <div class={item.severityClass}>{item.severityLabel}</div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <template if:false={hasDependencies}>
+              <div class="empty-state">No dependencies were found for this delete.</div>
+            </template>
+
+            <template if:true={showBlockedNote}>
+              <div class="blocked-note">{blockedMessage}</div>
+            </template>
+          </template>
+        </template>
+      </div>
+
+      <footer class="slds-modal__footer">
+        <lightning-button
+          label="Cancel"
+          variant="neutral"
+          onclick={handleCancel}
+        ></lightning-button>
+        <button
+          type="button"
+          class={deleteButtonClass}
+          onclick={handleDelete}
+          disabled={isDeleteDisabled}
+        >
+          {deleteButtonLabel}
+        </button>
+      </footer>
+    </div>
+  </section>
+  <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

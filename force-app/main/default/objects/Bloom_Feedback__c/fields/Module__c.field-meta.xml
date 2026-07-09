@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Module__c</fullName>
+    <label>Module</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>App</fullName>
+                <default>false</default>
+                <label>App</label>
+            </value>
+            <value>
+                <fullName>Login</fullName>
+                <default>false</default>
+                <label>Login</label>
+            </value>
+            <value>
+                <fullName>Move In</fullName>
+                <default>false</default>
+                <label>Move In</label>
+            </value>
+            <value>
+                <fullName>Access Permit</fullName>
+                <default>false</default>
+                <label>Access Permit</label>
+            </value>
+            <value>
+                <fullName>Amenity Reservation</fullName>
+                <default>false</default>
+                <label>Amenity Reservation</label>
+            </value>
+            <value>
+                <fullName>Guest Management</fullName>
+                <default>false</default>
+                <label>Guest Management</label>
+            </value>
+            <value>
+                <fullName>Access Cards</fullName>
+                <default>false</default>
+                <label>Access Cards</label>
+            </value>
+            <value>
+                <fullName>Service Charges</fullName>
+                <default>false</default>
+                <label>Service Charges</label>
+            </value>
+            <value>
+                <fullName>Vacation Mode</fullName>
+                <default>false</default>
+                <label>Vacation Mode</label>
+            </value>
+            <value>
+                <fullName>Renewal</fullName>
+                <default>false</default>
+                <label>Renewal</label>
+            </value>
+            <value>
+                <fullName>Move Out</fullName>
+                <default>false</default>
+                <label>Move Out</label>
+            </value>
+            <value>
+                <fullName>Profile</fullName>
+                <default>false</default>
+                <label>Profile</label>
+            </value>
+            <value>
+                <fullName>Portfolio</fullName>
+                <default>false</default>
+                <label>Portfolio</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

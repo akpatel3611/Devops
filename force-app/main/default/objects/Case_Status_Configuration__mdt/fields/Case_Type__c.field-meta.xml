@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Case_Type__c</fullName>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Case Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>General Service Request</fullName>
+                <default>true</default>
+                <label>General Service Request</label>
+            </value>
+            <value>
+                <fullName>Resale</fullName>
+                <default>false</default>
+                <label>Resale</label>
+            </value>
+            <value>
+                <fullName>Financial Services</fullName>
+                <default>false</default>
+                <label>Financial Services</label>
+            </value>
+            <value>
+                <fullName>Special Services</fullName>
+                <default>false</default>
+                <label>Special Services</label>
+            </value>
+            <value>
+                <fullName>Broker Registration</fullName>
+                <default>false</default>
+                <label>Broker Registration</label>
+            </value>
+            <value>
+                <fullName>Community living</fullName>
+                <default>false</default>
+                <label>Community living</label>
+            </value>
+            <value>
+                <fullName>Customer Service Complaint</fullName>
+                <default>false</default>
+                <label>Customer Service Complaint</label>
+            </value>
+            <value>
+                <fullName>Defect liability Complaint</fullName>
+                <default>false</default>
+                <label>Defect liability Complaint</label>
+            </value>
+            <value>
+                <fullName>Leasing Complaint</fullName>
+                <default>false</default>
+                <label>Leasing Complaint</label>
+            </value>
+            <value>
+                <fullName>Property Handover Complaint</fullName>
+                <default>false</default>
+                <label>Property Handover Complaint</label>
+            </value>
+            <value>
+                <fullName>Property Transfer/Resale</fullName>
+                <default>false</default>
+                <label>Property Transfer/Resale</label>
+            </value>
+            <value>
+                <fullName>Sales Complaint</fullName>
+                <default>false</default>
+                <label>Sales Complaint</label>
+            </value>
+            <value>
+                <fullName>Handover Service Request</fullName>
+                <default>false</default>
+                <label>Handover Service Request</label>
+            </value>
+            <value>
+                <fullName>Maintenance Complaint</fullName>
+                <default>false</default>
+                <label>Maintenance Complaint</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

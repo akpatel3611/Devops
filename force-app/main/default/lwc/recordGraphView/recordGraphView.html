@@ -1,0 +1,355 @@
+<template>
+    <!-- ================= HEADER ================= -->
+    <div class="slds-p-around_small slds-border_bottom slds-theme_shade" style="position:sticky;top:0;z-index:5;">
+
+        <h2 class="slds-text-heading_small slds-m-bottom_x-small">
+            Record Graph Explorer
+        </h2>
+
+        <div class="slds-grid slds-gutters">
+
+            <div class="slds-col slds-size_3-of-12">
+                <lightning-combobox label="Select Object" value={selectedObjectApi} options={objectOptions}
+                    onchange={handleObjectChange}>
+                </lightning-combobox>
+            </div>
+
+            <div class="slds-col slds-size_6-of-12" style="position:relative;">
+                <lightning-input type="search" label="Search Records" data-id="recordSearch" onchange={handleRecordSearch}>
+                </lightning-input>
+                <template if:true={showSearchResults}>
+                    <div class="slds-box slds-theme_default"
+                        style="position:absolute;top:58px;width:100%;max-height:180px;overflow:auto;z-index:20;">
+
+                        <template if:true={hasSearchResults}>
+                            <template for:each={searchResults} for:item="rec">
+                                <div key={rec.recordId} data-id={rec.recordId} onclick={handleRecordSelect}
+                                    class="slds-box slds-p-around_x-small slds-border_bottom slds-truncate slds-border_blue "
+                                    data-selected={rec.recordId}
+                                    style="cursor:pointer; background:#eef4ff;">
+                                    {rec.recordName}
+                                </div>
+                            </template>
+                        </template>
+
+                        <template if:false={hasSearchResults}>
+                            <div class="slds-text-color_weak slds-p-around_small">
+                                No matching records found
+                            </div>
+                        </template>
+
+                    </div>
+                </template>
+            </div>
+
+            <div class="slds-col slds-size_3-of-12 slds-text-align_right">
+                <lightning-button label="Standard List View" onclick={openStandardList}>
+                </lightning-button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ================= BODY ================= -->
+    <div style="height:calc(80vh - 82px);overflow:hidden;display:flex;">
+
+        <!-- LEFT PANEL (OVERLAY) -->
+        <template if:true={leftPanelOpen}>
+            <div style="width:300px;height:100%;background:#f4f6f9; border-right:2px solid #0176d3; 
+                            padding:12px; flex-shrink:0; display:flex; flex-direction:column;">
+                <!-- PANEL HEADER -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <div style="display:flex;align-items:center;">
+                        <div onclick={toggleLeftPanel}
+                            style="width:28px;height:28px;border:1px solid #d8dde6;
+                            border-radius:4px;display:flex;
+                            align-items:center;justify-content:center;
+                            cursor:pointer;background:white;">
+                            ☰
+                        </div>
+                        <div class="slds-text-title_bold slds-m-left_small">
+                            Related Objects
+                        </div>
+                    </div>
+                
+                    <button class="slds-button slds-button_icon" onclick={toggleLeftPanel} title="Close">
+                        ✕
+                    </button>
+                </div>
+
+                <lightning-input type="search" label="Search Object" value={relatedObjectSearchKey}
+                    onchange={handleRelatedObjectSearch} data-id="relatedSearch">
+                </lightning-input>
+
+
+                <div style="flex:1;overflow:auto;margin-top:8px;">
+                    <template for:each={visibleHierarchyNodes} for:item="node">
+                    
+                        <!-- ROOT -->
+                        <template if:true={node.isRoot}>
+                            <div key={node.nodeId}
+                                 class="slds-grid slds-grid_vertical-align-center slds-p-vertical_x-small">
+                        
+                                <template if:true={node.hasChildren}>
+                                    <button class="slds-button slds-button_icon slds-m-right_x-small"
+                                            data-id={node.nodeId}
+                                            onclick={toggleExpand}>
+                                                                
+                                        <template if:false={node.isExpanded}>
+                                            <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
+                                        </template>
+                                    
+                                        <template if:true={node.isExpanded}>
+                                            <lightning-icon icon-name="utility:chevrondown" size="x-small"></lightning-icon>
+                                        </template>
+                                    
+                                    </button>
+                                </template>
+                            
+                                <span class="slds-text-title_bold">
+                                    {node.label}
+                                </span>
+                                <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small">
+                                        ({node.relationshipType})
+                                </span>
+                            </div>
+                        </template>
+                    
+                        <!-- CHILD -->
+                        <template if:true={node.isChild}>
+                            <div key={node.nodeId}
+                                 class="slds-grid slds-grid_vertical-align-center slds-p-vertical_x-small slds-m-left_medium">
+                        
+                                <template if:true={node.hasChildren}>
+                                    <button class="slds-button slds-button_icon slds-m-right_x-small"
+                                            data-id={node.nodeId}
+                                            onclick={toggleExpand}>
+                                                                
+                                        <template if:false={node.isExpanded}>
+                                            <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
+                                        </template>
+                                    
+                                        <template if:true={node.isExpanded}>
+                                            <lightning-icon icon-name="utility:chevrondown" size="x-small"></lightning-icon>
+                                        </template>
+                                    
+                                    </button>
+                                </template>
+                            
+                                <span data-value={node.objectApiName}
+                                    onclick={selectRelatedObject}
+                                    class="slds-truncate"
+                                    data-api={node.objectApiName}
+                                    style="cursor:pointer; padding:2px 4px; border-radius:4px;">
+                                    {node.label}
+                                </span>
+                                <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small">
+                                        ({node.relationshipType})
+                                </span>
+                            </div>
+                        </template>
+                    
+                        <!-- SUB CHILD -->
+                        <template if:true={node.isSubChild}>
+                            <div key={node.nodeId}
+                                 class="slds-grid slds-grid_vertical-align-center slds-p-vertical_x-small slds-m-left_large">
+                        
+                                <template if:true={node.hasChildren}>
+                                    <button class="slds-button slds-button_icon slds-m-right_x-small"
+                                            data-id={node.nodeId}
+                                            onclick={toggleExpand}>
+                                
+                                        <template if:false={node.isExpanded}>
+                                            <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
+                                        </template>
+                                    
+                                        <template if:true={node.isExpanded}>
+                                            <lightning-icon icon-name="utility:chevrondown" size="x-small"></lightning-icon>
+                                        </template>
+                                    
+                                    </button>
+                                </template>
+                            
+                                <span data-value={node.objectApiName}
+                                      onclick={selectRelatedObject}
+                                      class="slds-truncate"
+                                      style="cursor:pointer; background:#eef4ff; border:2px solid #0176d3;">
+                                    {node.label}
+                                </span>
+                                <span class="slds-text-body_small slds-text-color_weak slds-m-left_x-small">
+                                        ({node.relationshipType})
+                                </span>
+                            </div>
+                        </template>
+                    
+                    </template>
+                </div>
+
+                <template if:true={selectedRelatedObjects.length}>
+                    <div class="slds-m-top_medium slds-pill_container"
+                             style="display:flex;flex-wrap:wrap; max-height:120px; overflow:auto;">
+                        <template for:each={selectedRelatedObjects} for:item="obj">
+                            <span key={obj.apiName} class="slds-pill slds-m-right_x-small slds-m-bottom_x-small">
+
+                                <lightning-icon icon-name={obj.icon} size="x-small" class="slds-m-right_x-small">
+                                </lightning-icon>
+
+                                <button class="slds-button slds-button_reset slds-pill__label" data-api={obj.apiName}
+                                    onclick={handlePillClick}>
+                                    {obj.apiName}
+                                </button>
+
+                                <button class="slds-button slds-button_icon" data-value={obj.apiName}
+                                    onclick={removeSelectedObject} title="Remove">
+                                    ✕
+                                </button>
+                            </span>
+                        </template>
+                    </div>
+
+                    <div class="slds-m-top_medium">
+                        <lightning-button label="View" variant="brand" onclick={showSelectedHierarchy}>
+                        </lightning-button>
+                    </div>
+                </template>
+
+
+
+
+            </div>
+        </template>
+
+        <!-- MAIN CONTENT -->
+        <div style="flex:1;position:relative;overflow:hidden;padding:0 12px;">
+
+            <!-- LEFT ICON (ONLY WHEN PANEL CLOSED) -->
+            <template if:false={leftPanelOpen}>
+                <div onclick={toggleLeftPanel} style="position:absolute;top:0;left:0;width:28px;height:28px;
+                            border:1px solid #d8dde6;border-radius:4px;
+                            display:flex;align-items:center;justify-content:center;
+                            cursor:pointer;background:white;z-index:5;">
+                    ☰
+                </div>
+            </template>
+
+            <!-- RECORD DETAIL -->
+            <template if:true={recordSelected}>
+                <div class="slds-box slds-theme_default" style="margin-top:0;
+                            margin-bottom:12px;background:#f3f6ff;">
+
+                    <lightning-record-form record-id={selectedRecordId} object-api-name={selectedObjectApi}
+                        layout-type="Compact" mode="view" columns="2">
+                    </lightning-record-form>
+                </div>
+            </template>
+
+            <!-- CANVAS -->
+            <!-- CANVAS -->
+            <template if:true={canvasVisible}>
+                <div class="canvas-area" onmousedown={startCanvasDrag} style="position:absolute;top:0;left:0;right:0;bottom:0;
+                background:#eef4ff;overflow:hidden;">
+
+                    <!-- 🔹 ZOOM WRAPPER (IMPORTANT) -->
+                    <div class="canvas-zoom-layer" style="position:absolute;top:0;left:0;
+                    transform-origin: 0 0;
+                    will-change: transform;">
+
+                        <!-- LINKS -->
+                        <svg style="position:absolute;top:0;left:0;width:2000px;height:2000px;
+                        z-index:1;pointer-events:none;">
+                            <template for:each={canvasLinks} for:item="link">
+                                <path key={link.id} d={link.d} stroke="#0176d3" stroke-width="2" fill="none">
+                                </path>
+                            </template>
+                        </svg>
+
+                        <!-- NODES -->
+                        <template for:each={canvasNodes} for:item="node">
+                            <div key={node.name} class="canvas-node" data-name={node.name} onclick={handleCanvasClick}
+                                onmousedown={startDrag} style="position:absolute;width:120px;height:60px;
+                            border-radius:6px;background:white;
+                            border:2px solid #0176d3;
+                            display:flex;flex-direction:column;
+                            align-items:center;justify-content:center;
+                            cursor:pointer;z-index:2;">
+                                <lightning-icon icon-name={node.icon} size="small"></lightning-icon>
+                                <div>{node.label}</div>
+                                <div>{node.count}</div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- 🔹 ZOOM CONTROLS (BOTTOM LEFT – FIXED) -->
+                    <div style="position:absolute;bottom:12px;left:12px;z-index:10;
+                    background:white;padding:6px;border-radius:6px;
+                    box-shadow:0 2px 4px rgba(0,0,0,0.2);
+                    display:flex;gap:10px;">
+                        <lightning-icon icon-name="utility:zoomin" size="small" onclick={zoomIn}></lightning-icon>
+
+                        <lightning-icon icon-name="utility:zoomout" size="small" onclick={zoomOut}></lightning-icon>
+                    </div>
+                </div>
+            </template>
+
+
+        </div>
+
+        <!-- RIGHT PANEL (unchanged logic) -->
+        <template if:true={rightPanelVisible}>
+            <div style="width:320px;background:#f8faff;border-left:2px solid #0176d3;
+                        padding:12px;position:relative;overflow:hidden;">
+
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div class="slds-text-title_bold">
+                        {rightPanelTitle}
+                    </div>
+                
+                    <button class="slds-button slds-button_icon" onclick={closeRightPanel} title="Close">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- LIST MODE -->
+                <template if:true={isRightPanelList}>
+                    <div style="max-height:calc(100% - 10px);overflow:auto;">
+                        <template if:true={hasRightPanelRecords}>
+                            <template for:each={rightPanelRecords} for:item="rec">
+                                <div key={rec.recordId} data-id={rec.recordId} data-object={rec.objectApiName}
+                                    onclick={handlePanelRecordClick} class="slds-box slds-m-bottom_x-small"
+                                    style="cursor:pointer; background:#eef4ff; border-left:3px solid #0176d3;">
+                                    <div class="slds-text-title slds-truncate">{rec.recordName}</div>
+                                </div>
+                            </template>
+                        </template>
+
+                        <template if:false={hasRightPanelRecords}>
+                            <div class="slds-text-color_weak slds-p-around_medium">
+                                No records found
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- DETAIL MODE -->
+                <template if:true={isRightPanelDetail}>
+                    <div style="max-height:calc(100% - 70px);overflow:auto;">
+                        <lightning-record-form record-id={selectedPanelRecordId}
+                            object-api-name={selectedPanelObjectApi} layout-type="Compact" mode="view" columns="1">
+                        </lightning-record-form>
+                    </div>
+
+                    <div class="slds-grid slds-gutters slds-m-top_small">
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-button label="Back" onclick={handleBack}></lightning-button>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-text-align_right">
+                            <lightning-button label="View" variant="brand" onclick={handleView}></lightning-button>
+                        </div>
+                    </div>
+                </template>
+
+            </div>
+        </template>
+
+    </div>
+</template>

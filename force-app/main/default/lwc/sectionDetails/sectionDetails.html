@@ -1,0 +1,58 @@
+<template>
+  <div class="section-shell">
+    <div class="section-header slds-page-header slds-page-header_joined">
+      <div class="section-heading">
+        <p class="section-kicker">Object Manager</p>
+        <h1 class="section-title">Details</h1>
+        <p class="section-subtitle">{objectName}</p>
+      </div>
+
+      <div class="section-tools">
+        <lightning-button
+          label="Export Docs"
+          variant="neutral"
+          class="slds-m-right_x-small"
+          onclick={openExportModal}
+        ></lightning-button>
+        <input
+          type="text"
+          class="section-search"
+          placeholder="Quick search"
+          value={searchTerm}
+          oninput={handleSearch}
+        />
+      </div>
+    </div>
+
+    <template if:true={hasDetails}>
+      <template if:true={hasVisibleDetails}>
+        <div class="details-grid">
+          <template for:each={detailColumns} for:item="column">
+            <div key={column.key} class="details-card slds-card">
+              <template for:each={column.rows} for:item="row">
+                <div key={row.label} class="detail-row">
+                  <div class="detail-label">{row.label}</div>
+                  <div class="detail-value">{row.value}</div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <template if:false={hasVisibleDetails}>
+        <div class="details-card slds-card empty-card">
+          No details match the current filter.
+        </div>
+      </template>
+    </template>
+
+    <template if:true={isExportModalOpen}>
+      <c-export-modal
+        mode="single"
+        object-id={objectName}
+        onclose={closeExportModal}
+      ></c-export-modal>
+    </template>
+  </div>
+</template>

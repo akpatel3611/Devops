@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Service_Catalog__c</fullName>
+    <label>Service Catalog</label>
+    <referenceTo>Service_Catalog__c</referenceTo>
+    <relationshipLabel>Service Catalog Fields</relationshipLabel>
+    <relationshipName>Service_Catalog_Fields</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <trackTrending>false</trackTrending>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

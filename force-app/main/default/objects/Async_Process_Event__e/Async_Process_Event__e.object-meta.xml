@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Used for realtime async process tracking between Apex and LWC.</description>
+    <eventType>HighVolume</eventType>
+    <label>Async Process Event</label>
+    <pluralLabel>Async Process Events</pluralLabel>
+    <publishBehavior>PublishImmediately</publishBehavior>
+</CustomObject>

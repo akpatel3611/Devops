@@ -1,0 +1,39 @@
+<template>
+    <lightning-card title="AI Resume Enhancer" icon-name="standard:bot">
+        <div class="slds-p-around_medium">
+            
+            <lightning-file-upload
+                label="Step 1: Upload Existing Resume (.docx only)"
+                accept=".docx"
+                onuploadfinished={handleUploadFinished}>
+            </lightning-file-upload>
+
+            <template if:true={uploadedFileId}>
+                <div class="slds-m-top_medium slds-text-color_success slds-text-title_caps">
+                    ✅ Resume Uploaded Successfully!
+                </div>
+                
+                <lightning-textarea 
+                    label="Step 2: Enter Master AI Prompt" 
+                    placeholder="E.g., Format this resume for a Senior Salesforce Developer role. Use strong keywords."
+                    value={promptValue}
+                    onchange={handlePromptChange}
+                    class="slds-m-top_medium"
+                    required>
+                </lightning-textarea>
+
+                <lightning-button 
+                    label="Generate AI Resume" 
+                    variant="brand" 
+                    onclick={handleProcess} 
+                    class="slds-m-top_medium"
+                    disabled={isLoading}>
+                </lightning-button>
+            </template>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="AI is processing... please wait" size="medium"></lightning-spinner>
+            </template>
+        </div>
+    </lightning-card>
+</template>

@@ -1,0 +1,41 @@
+<template>
+    <lightning-quick-action-panel header="Additional Contacts" 
+        onclose={handleClose}>
+
+        <!-- Search Bar -->
+        <lightning-input 
+            type="search" 
+            label="Search Contacts" 
+            placeholder="Enter name, email, or phone"
+            value={searchKey}
+            onchange={handleSearch}>
+        </lightning-input>
+
+        <!-- Search Results -->
+        <template if:true={searchResults}>
+            <lightning-datatable
+                key-field="Id"
+                data={searchResults}
+                columns={columns}
+                onrowselection={handleRowSelection}
+                show-row-number-column>
+            </lightning-datatable>
+        </template>
+
+        <!-- Selected Contacts -->
+        <template if:true={selectedContacts.length}>
+            <h3 class="slds-m-top_medium">Selected Contacts</h3>
+            <lightning-datatable
+                key-field="Id"
+                data={selectedContacts}
+                columns={columns}
+                hide-checkbox-column
+                show-row-number-column>
+            </lightning-datatable>
+        </template>
+
+        <!-- Footer Buttons -->
+            <lightning-button label="Cancel" onclick={handleClose}></lightning-button>
+            <lightning-button variant="brand" label="Save" onclick={handleSave}></lightning-button>
+    </lightning-quick-action-panel>
+</template>

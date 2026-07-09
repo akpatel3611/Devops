@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SellingPriceValidationRule</fullName>
+    <active>false</active>
+    <description>Validation Rule to ensure &apos;Selling Price Comments&apos; &amp; &apos;Selling Price Revision Number&apos; is populated  when &apos;Selling Price&apos; changes</description>
+    <errorConditionFormula>AND( ISCHANGED( SellingPrice__c ), !ISCHANGED( SellingPriceComments__c ))</errorConditionFormula>
+    <errorDisplayField>SellingPriceComments__c</errorDisplayField>
+    <errorMessage>Please edit the Selling Price Comments field.</errorMessage>
+</ValidationRule>

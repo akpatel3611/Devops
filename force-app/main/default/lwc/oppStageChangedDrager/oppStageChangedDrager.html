@@ -1,0 +1,47 @@
+<template>
+    <div class="slds-grid slds-wrap slds-gutters">
+        <template for:each={columns} for:item="col">
+            <div key={col.name}
+                 class="slds-col slds-size_1-of-5 slds-p-around_small"
+                 ondrop={handleDrop}
+                 ondragover={allowDrop}
+                 data-stage={col.name}>
+
+                <!-- Outer Column -->
+                <lightning-card title={col.label} class="slds-m-around_x-small">
+                    <div class="slds-p-around_small slds-scrollable_y" style="max-height:60vh;">
+
+                        <!-- Loop Records -->
+                        <template for:each={col.records} for:item="rec">
+                            <article key={rec.Id}
+                                     class="slds-m-bottom_small"
+                                     draggable="true"
+                                     data-id={rec.Id}
+                                     data-stage={col.name}
+                                     ondragstart={handleDrag}>
+
+                                <!-- Inner Card with Shadow -->
+                                <div class="slds-box "
+                                     style="border-radius:6px; box-shadow:0 6px 10px rgba(76, 90, 80, 0.9); padding:0.75rem;">
+                                    
+                                    <h3 class="slds-text-heading_small slds-truncate"
+                                        style="font-weight:bold; color:#16325c; text-shadow:0px 1px 1px rgba(0,0,0,0.2);">
+                                        {rec.Name}
+                                    </h3>
+                                    <p class="slds-text-body_small" style="color:#444; margin:0;">
+                                        Amount: {rec.Amount}
+                                    </p>
+                                    <p class="slds-text-body_small slds-text-color_weak" style="margin:0;">
+                                        Stage: {rec.StageName}
+                                    </p>
+                                </div>
+
+                            </article>
+                        </template>
+
+                    </div>
+                </lightning-card>
+            </div>
+        </template>
+    </div>
+</template>

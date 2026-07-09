@@ -1,0 +1,660 @@
+<template>
+  <div class="section-shell">
+    <div class="section-header slds-page-header slds-page-header_joined">
+      <div class="section-heading">
+        <p class="section-kicker">Object Manager</p>
+        <div class="section-title-row">
+          <h1 class="section-title">Fields &amp; Relationships</h1>
+          <span class="count-badge">{fieldCountLabel}</span>
+        </div>
+        <p class="section-subtitle">{objectName}</p>
+      </div>
+
+      <div class="section-tools">
+        <lightning-button-menu
+          alternative-text="Add fields"
+          label="Add Fields"
+          icon-name="utility:add"
+          onselect={handleBulkMenuSelect}
+        >
+          <lightning-menu-item
+            value="manual"
+            label="Add Manually"
+          ></lightning-menu-item>
+          <lightning-menu-item
+            value="csv"
+            label="Upload CSV"
+          ></lightning-menu-item>
+        </lightning-button-menu>
+        <input
+          type="text"
+          class="field-search"
+          placeholder="Search fields"
+          value={searchTerm}
+          oninput={handleSearch}
+        />
+        <lightning-combobox
+          class="data-type-filter"
+          label="Data Type"
+          variant="label-hidden"
+          value={selectedDataType}
+          options={dataTypeOptions}
+          onchange={handleDataTypeChange}
+        ></lightning-combobox>
+      </div>
+    </div>
+
+    <div class="table-card slds-card">
+      <div class="table-scroll">
+        <table
+          class="field-table slds-table slds-table_cell-buffer slds-table_bordered slds-no-row-hover"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Field Label</th>
+              <th scope="col">API Name</th>
+              <th scope="col">Data Type</th>
+              <th scope="col">Required</th>
+              <th scope="col">External ID</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template if:true={hasFields}>
+              <template for:each={filteredFields} for:item="field">
+                <tr key={field.apiName}>
+                  <td>
+                    <a
+                      href={field.fieldUrl}
+                      class="table-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{field.label}</a
+                    >
+                  </td>
+                  <td>
+                    <a
+                      href={field.fieldUrl}
+                      class="table-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{field.apiName}</a
+                    >
+                  </td>
+                  <td>
+                    <a
+                      href={field.fieldUrl}
+                      class="table-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{field.dataTypeLabel}</a
+                    >
+                  </td>
+                  <td>{field.requiredLabel}</td>
+                  <td>{field.externalIdLabel}</td>
+                  <td>
+                    <lightning-button-menu
+                      alternative-text="Field actions"
+                      icon-name="utility:down"
+                      menu-alignment="right"
+                      data-field-api-name={field.apiName}
+                      onselect={handleFieldAction}
+                    >
+                      <lightning-menu-item
+                        value="edit"
+                        label="Edit"
+                      ></lightning-menu-item>
+                      <lightning-menu-item
+                        value="delete"
+                        label="Delete"
+                        disabled={field.deleteDisabled}
+                      ></lightning-menu-item>
+                    </lightning-button-menu>
+                  </td>
+                </tr>
+              </template>
+            </template>
+
+            <template if:false={hasFields}>
+              <tr>
+                <td colspan="6" class="empty-row">
+                  No fields match the current filter.
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <template if:true={isImpactModalOpen}>
+      <c-impact-analyzer-modal
+        target={impactTarget}
+        onclose={handleCloseImpactModal}
+        onconfirmdelete={handleConfirmDeleteField}
+      ></c-impact-analyzer-modal>
+    </template>
+
+    <template if:true={isManualModalOpen}>
+      <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container manual-modal">
+          <header class="slds-modal__header modal-header">
+            <lightning-button-icon
+              icon-name="utility:close"
+              alternative-text="Close"
+              variant="bare"
+              onclick={closeManualModal}
+              class="modal-close-icon"
+            ></lightning-button-icon>
+            <h2 class="slds-modal__title">Add Fields Manually</h2>
+          </header>
+          <div class="slds-modal__content modal-body slds-p-around_medium">
+            <template if:false={isManualReviewMode}>
+              <div class="table-scroll">
+                <table
+                  class="field-table manual-table slds-table slds-table_cell-buffer slds-table_bordered slds-no-row-hover"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">Label</th>
+                      <th scope="col">API Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Details</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Unique</th>
+                      <th scope="col">External ID</th>
+                      <th scope="col">Default</th>
+                      <th scope="col">Help Text</th>
+                      <th scope="col">Description</th>
+                      <th scope="col">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template for:each={manualRowsView} for:item="row">
+                      <tr key={row.id}>
+                        <td>
+                          <lightning-input
+                            type="text"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="label"
+                            value={row.label}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <lightning-input
+                            type="text"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="apiName"
+                            value={row.apiName}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <lightning-combobox
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="type"
+                            value={row.type}
+                            options={bulkDataTypeOptions}
+                            onchange={handleManualCellChange}
+                          ></lightning-combobox>
+                        </td>
+                        <td>
+                          <template if:true={row.isText}>
+                            <lightning-input
+                              type="number"
+                              variant="label-hidden"
+                              data-id={row.id}
+                              data-field="length"
+                              value={row.length}
+                              onchange={handleManualCellChange}
+                            ></lightning-input>
+                          </template>
+                          <template if:true={row.isTextArea}>
+                            <lightning-input
+                              type="number"
+                              variant="label-hidden"
+                              data-id={row.id}
+                              data-field="length"
+                              value={row.length}
+                              onchange={handleManualCellChange}
+                            ></lightning-input>
+                          </template>
+                          <template if:true={row.isNumber}>
+                            <div class="inline-pair">
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="precision"
+                                value={row.precision}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="scale"
+                                value={row.scale}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                            </div>
+                          </template>
+                          <template if:true={row.isCurrency}>
+                            <div class="inline-pair">
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="precision"
+                                value={row.precision}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="scale"
+                                value={row.scale}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                            </div>
+                          </template>
+                          <template if:true={row.isPercent}>
+                            <div class="inline-pair">
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="precision"
+                                value={row.precision}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="scale"
+                                value={row.scale}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                            </div>
+                          </template>
+                          <template if:true={row.isPicklist}>
+                            <lightning-textarea
+                              variant="label-hidden"
+                              data-id={row.id}
+                              data-field="picklistValues"
+                              value={row.picklistValues}
+                              onchange={handleManualCellChange}
+                            ></lightning-textarea>
+                          </template>
+                          <template if:true={row.isMultiSelectPicklist}>
+                            <lightning-textarea
+                              variant="label-hidden"
+                              data-id={row.id}
+                              data-field="picklistValues"
+                              value={row.picklistValues}
+                              onchange={handleManualCellChange}
+                            ></lightning-textarea>
+                          </template>
+                          <template if:true={row.isLongTextArea}>
+                            <div class="inline-pair">
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="length"
+                                value={row.length}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="visibleLines"
+                                value={row.visibleLines}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                            </div>
+                          </template>
+                          <template if:true={row.isAutoNumber}>
+                            <div class="inline-pair">
+                              <lightning-input
+                                type="text"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="displayFormat"
+                                value={row.displayFormat}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                              <lightning-input
+                                type="number"
+                                variant="label-hidden"
+                                data-id={row.id}
+                                data-field="startingNumber"
+                                value={row.startingNumber}
+                                onchange={handleManualCellChange}
+                              ></lightning-input>
+                            </div>
+                          </template>
+                          <template if:true={row.isDateTime}>
+                            <span class="detail-hint">No extra details</span>
+                          </template>
+                          <template if:false={row.isText}>
+                            <template if:false={row.isTextArea}>
+                              <template if:false={row.isNumber}>
+                                <template if:false={row.isCurrency}>
+                                  <template if:false={row.isPercent}>
+                                    <template if:false={row.isPicklist}>
+                                      <template
+                                        if:false={row.isMultiSelectPicklist}
+                                      >
+                                        <template if:false={row.isLongTextArea}>
+                                          <template if:false={row.isAutoNumber}>
+                                            <template if:false={row.isDateTime}>
+                                              <span class="detail-hint">
+                                                No extra details
+                                              </span>
+                                            </template>
+                                          </template>
+                                        </template>
+                                      </template>
+                                    </template>
+                                  </template>
+                                </template>
+                              </template>
+                            </template>
+                          </template>
+                        </td>
+                        <td>
+                          <lightning-input
+                            type="checkbox"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="required"
+                            checked={row.required}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <lightning-input
+                            type="checkbox"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="unique"
+                            checked={row.unique}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <lightning-input
+                            type="checkbox"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="externalId"
+                            checked={row.externalId}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <template if:true={row.isCheckbox}>
+                            <lightning-input
+                              type="checkbox"
+                              variant="label-hidden"
+                              data-id={row.id}
+                              data-field="defaultValue"
+                              checked={row.defaultValue}
+                              onchange={handleManualCellChange}
+                            ></lightning-input>
+                          </template>
+                          <template if:false={row.isCheckbox}>
+                            <span class="detail-hint">N/A</span>
+                          </template>
+                        </td>
+                        <td>
+                          <lightning-input
+                            type="text"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="inlineHelpText"
+                            value={row.inlineHelpText}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <lightning-input
+                            type="text"
+                            variant="label-hidden"
+                            data-id={row.id}
+                            data-field="description"
+                            value={row.description}
+                            onchange={handleManualCellChange}
+                          ></lightning-input>
+                        </td>
+                        <td>
+                          <div class="row-actions">
+                            <lightning-button-icon
+                              icon-name="utility:copy"
+                              variant="bare"
+                              alternative-text="Copy row"
+                              data-id={row.id}
+                              onclick={copyManualRow}
+                            ></lightning-button-icon>
+                            <template if:true={row.isLastRow}>
+                              <lightning-button-icon
+                                icon-name="utility:add"
+                                variant="bare"
+                                alternative-text="Add row"
+                                onclick={addManualRow}
+                              ></lightning-button-icon>
+                            </template>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <template if:true={isManualReviewMode}>
+              <div class="review-banner">
+                Review data before creating fields.
+              </div>
+              <div class="table-scroll">
+                <table
+                  class="field-table manual-table review-table slds-table slds-table_cell-buffer slds-table_bordered slds-no-row-hover"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">Label</th>
+                      <th scope="col">API Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Details</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Unique</th>
+                      <th scope="col">External ID</th>
+                      <th scope="col">Validation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template for:each={manualReviewRowsView} for:item="row">
+                      <tr key={row.key}>
+                        <td><span class="table-link">{row.label}</span></td>
+                        <td><span class="table-link">{row.apiName}</span></td>
+                        <td><span class="table-link">{row.typeLabel}</span></td>
+                        <td>
+                          <span class="detail-hint">{row.extraLabel}</span>
+                        </td>
+                        <td>{row.required}</td>
+                        <td>{row.unique}</td>
+                        <td>{row.externalId}</td>
+                        <td>
+                          <span
+                            class={row.validationClass}
+                            title={row.validationLabel}
+                          >
+                            {row.validationLabel}
+                          </span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <template if:true={hasManualSubmitErrors}>
+                <div class="csv-errors">
+                  <template for:each={manualSubmitErrors} for:item="error">
+                    <p key={error}>{error}</p>
+                  </template>
+                </div>
+              </template>
+            </template>
+          </div>
+          <footer class="slds-modal__footer">
+            <template if:false={isManualReviewMode}>
+              <lightning-button
+                label="Cancel"
+                variant="neutral"
+                onclick={closeManualModal}
+              ></lightning-button>
+              <lightning-button
+                label="Save"
+                variant="brand"
+                class="slds-m-left_small"
+                onclick={saveManualRows}
+                disabled={isSaving}
+              ></lightning-button>
+            </template>
+            <template if:true={isManualReviewMode}>
+              <lightning-button
+                label="Edit"
+                variant="neutral"
+                onclick={switchToManualEditMode}
+                disabled={isSaving}
+              ></lightning-button>
+              <lightning-button
+                label="Confirm Create"
+                variant="brand"
+                class="slds-m-left_small"
+                onclick={confirmManualRows}
+                disabled={isManualConfirmDisabled}
+              ></lightning-button>
+            </template>
+          </footer>
+        </div>
+      </section>
+      <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <template if:true={isCsvModalOpen}>
+      <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container csv-modal">
+          <header class="slds-modal__header modal-header">
+            <lightning-button-icon
+              icon-name="utility:close"
+              alternative-text="Close"
+              variant="bare"
+              onclick={closeCsvModal}
+              class="modal-close-icon"
+            ></lightning-button-icon>
+            <h2 class="slds-modal__title">Upload CSV For Bulk Fields</h2>
+          </header>
+          <div class="slds-modal__content slds-p-around_medium">
+            <p class="csv-help">
+              CSV headers supported: label, apiName, type, length, precision,
+              scale, required, unique, externalId, picklistValues, description,
+              inlineHelpText, defaultValue, visibleLines, displayFormat,
+              startingNumber. Supported types include Text, Text Area, Long Text
+              Area, Rich Text Area, Number, Currency, Percent, Checkbox, Date,
+              Date/Time, Time, Email, Phone, URL, Auto Number, Encrypted Text,
+              Picklist, and Picklist (Multi-Select).
+            </p>
+            <lightning-input
+              type="file"
+              accept=".csv"
+              label="CSV File"
+              onchange={handleCsvFileChange}
+            ></lightning-input>
+            <template if:true={selectedCsvFileName}>
+              <p class="csv-file-name">
+                {selectedCsvFileName} - {csvCountLabel}
+              </p>
+            </template>
+            <template if:true={hasCsvErrors}>
+              <div class="csv-errors">
+                <template for:each={csvErrors} for:item="error">
+                  <p key={error}>{error}</p>
+                </template>
+              </div>
+            </template>
+            <template if:true={hasCsvRows}>
+              <div class="table-scroll csv-preview">
+                <table
+                  class="field-table slds-table slds-table_cell-buffer slds-table_bordered slds-no-row-hover"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">Label</th>
+                      <th scope="col">API Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Extra</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Unique</th>
+                      <th scope="col">External ID</th>
+                      <th scope="col">Help Text</th>
+                      <th scope="col">Validation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template for:each={csvRowsView} for:item="row">
+                      <tr key={row.key}>
+                        <td><span class="table-link">{row.label}</span></td>
+                        <td><span class="table-link">{row.apiName}</span></td>
+                        <td><span class="table-link">{row.typeLabel}</span></td>
+                        <td>
+                          <span class="detail-hint">{row.extraLabel}</span>
+                        </td>
+                        <td>{row.required}</td>
+                        <td>{row.unique}</td>
+                        <td>{row.externalId}</td>
+                        <td>{row.inlineHelpText}</td>
+                        <td>
+                          <span
+                            class={row.validationClass}
+                            title={row.validationLabel}
+                          >
+                            {row.validationLabel}
+                          </span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+          </div>
+          <footer class="slds-modal__footer">
+            <lightning-button
+              label="Cancel"
+              variant="neutral"
+              onclick={closeCsvModal}
+            ></lightning-button>
+            <lightning-button
+              label="Create Fields"
+              variant="brand"
+              class="slds-m-left_small"
+              onclick={saveCsvRows}
+              disabled={isSaving}
+            ></lightning-button>
+          </footer>
+        </div>
+      </section>
+      <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+  </div>
+</template>

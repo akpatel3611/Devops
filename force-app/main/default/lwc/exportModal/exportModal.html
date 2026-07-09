@@ -1,0 +1,95 @@
+<template>
+  <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+    <div class="slds-modal__container export-modal">
+      <header class="slds-modal__header modal-header">
+        <lightning-button-icon
+          icon-name="utility:close"
+          alternative-text="Close"
+          variant="bare"
+          onclick={handleCancel}
+          class="modal-close-icon"
+        ></lightning-button-icon>
+        <h2 class="slds-modal__title">Export Documentation</h2>
+        <p class="modal-subtitle">{subtitle}</p>
+      </header>
+
+      <div class="slds-modal__content modal-body slds-p-around_medium">
+        <template if:true={isLoading}>
+          <div class="loading-state">
+            <lightning-spinner
+              alternative-text="Loading documentation"
+              size="small"
+            ></lightning-spinner>
+          </div>
+        </template>
+
+        <template if:false={isLoading}>
+          <template if:true={errorMessage}>
+            <div class="error-banner">{errorMessage}</div>
+          </template>
+
+          <div class="modal-grid">
+            <div class="modal-panel">
+              <div class="panel-title">Include Sections</div>
+
+              <div class="checkbox-list">
+                <template
+                  for:each={normalizedSectionOptions}
+                  for:item="sectionOption"
+                >
+                  <lightning-input
+                    key={sectionOption.key}
+                    type="checkbox"
+                    checked={sectionOption.checked}
+                    label={sectionOption.label}
+                    data-key={sectionOption.key}
+                    onchange={handleSectionToggle}
+                  ></lightning-input>
+                </template>
+              </div>
+            </div>
+
+            <div class="modal-panel">
+              <div class="panel-title">Format</div>
+
+              <div class="format-selector" role="tablist">
+                <template for:each={formatOptions} for:item="formatOption">
+                  <button
+                    type="button"
+                    key={formatOption.key}
+                    class={formatOption.className}
+                    data-format={formatOption.key}
+                    onclick={handleFormatChange}
+                  >
+                    {formatOption.label}
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-panel preview-panel">
+            <div class="panel-title">Preview</div>
+            <pre class="preview-text">{previewText}</pre>
+          </div>
+        </template>
+      </div>
+
+      <footer class="slds-modal__footer">
+        <lightning-button
+          label="Cancel"
+          variant="neutral"
+          onclick={handleCancel}
+        ></lightning-button>
+        <lightning-button
+          label={generateButtonLabel}
+          variant="brand"
+          class="slds-m-left_small"
+          onclick={handleGenerate}
+          disabled={isGenerateDisabled}
+        ></lightning-button>
+      </footer>
+    </div>
+  </section>
+  <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

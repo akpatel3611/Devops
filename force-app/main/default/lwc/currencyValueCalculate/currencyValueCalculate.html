@@ -1,0 +1,93 @@
+<template>
+    <div class="myClass">
+        <lightning-card title="💱 Crypto Currency Converter">
+            <div class="slds-p-around_medium">
+
+                <!-- Dropdowns with Swap -->
+                <div class="slds-grid slds-gutters slds-align_absolute-center slds-m-bottom_medium">
+                    
+                    <!-- From Currency -->
+                    <div class="slds-col slds-size_5-of-12">
+                        <lightning-combobox 
+                            name="fromCurrency" 
+                            label="From Currency"
+                            value={fromCurrency}
+                            options={fromOptions}
+                            onchange={handleFromChange}>
+                        </lightning-combobox>
+                    </div>
+
+                    <!-- Swap Icon -->
+                    <div class="slds-col slds-size_2-of-12 slds-align_absolute-center">
+                        <lightning-button-icon
+                            icon-name="utility:refresh"
+                            alternative-text="Swap Values"
+                            onclick={handleSwap}
+                            variant="bare"
+                            size="large"
+                            title="Swap Values"
+                            class="swap-icon">
+                        </lightning-button-icon>
+                    </div>
+
+                    <!-- To Currency -->
+                    <div class="slds-col slds-size_5-of-12">
+                        <lightning-combobox 
+                            name="toCurrency" 
+                            label="To Currency" 
+                            value={toCurrency}
+                            options={toOptions}
+                            onchange={handleToChange}>
+                        </lightning-combobox>
+                    </div>
+                </div>
+
+                <!-- Amount Input -->
+                <lightning-layout>
+                    <lightning-layout-item padding="around-small" size="3">
+                        <lightning-input 
+                            type="number" 
+                            label="Enter Amount"
+                            value={amount}
+                            onchange={handleAmountChange}
+                            placeholder="Enter the amount to convert"
+                            class="highlight-input">
+                        </lightning-input>
+                    </lightning-layout-item>
+                </lightning-layout>
+
+                <!-- Buttons -->
+                <div class="slds-align_absolute-center slds-m-bottom_medium">
+                    <lightning-button
+                        label="Convert" 
+                        variant="brand"
+                        onclick={handleConvert}
+                        disabled={isButtonDisabled}>
+                    </lightning-button>
+                    <lightning-button 
+                        label="Refresh" 
+                        variant="brand"
+                        onclick={handleRefresh}
+                        disabled={isButtonRefreshDisabled}>
+                    </lightning-button>
+                </div>
+
+                <!-- Spinner -->
+                <template if:true={isLoading}>
+                    <div class="slds-align_absolute-center">
+                        <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                    </div>
+                </template>
+
+                <!-- Result -->
+                <template if:true={conversionResult}>
+                    <hr class="slds-m-bottom_medium"/>
+                    <div class="slds-box slds-theme_success slds-m-top_medium">
+                        <p class="slds-text-heading_small">✅ {conversionResult}</p>
+                        <p>📅 {conversionDateTime}</p>
+                    </div>
+                </template>
+            </div>
+        </lightning-card>
+    </div>
+</template>

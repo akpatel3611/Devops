@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Guest_CheckIn__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Guest CheckIn</label>
+    <referenceTo>Guest_CheckIn__c</referenceTo>
+    <relationshipLabel>Guest CheckIn</relationshipLabel>
+    <relationshipName>Guest_Details</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

@@ -1,0 +1,82 @@
+<template>
+    <!-- Filters Card -->
+     <div style="height: 70px;">
+    <lightning-card style="height: 50px;">
+        <div class="slds-m-top_x-small slds-m-bottom_x-small slds-p-left_large">
+            <div class="slds-grid slds-grid_horizonatl-align-center slds-grid_align-start">
+
+                <!-- Status Filter -->
+                <div class="slds-m-right_medium">
+                    <lightning-combobox
+                        name="statusFilter"
+                        label="Status"
+                        value={statusFilter}
+                        options={statusOptions}
+                        onchange={handleStatusChange}>
+                    </lightning-combobox>
+                </div>
+
+                <!-- Priority Filter -->
+                <div class="slds-m-right_medium">
+                    <lightning-combobox
+                        name="priorityFilter"
+                        label="Priority"
+                        value={priorityFilter}
+                        options={priorityOptions}
+                        onchange={handlePriorityChange}>
+                    </lightning-combobox>
+                </div>
+
+                <!-- Date Filter -->
+                <div>
+                    <lightning-input 
+                        type="date"
+                        label="Due Date"
+                        value={dueDate}
+                        onchange={handleDateChange}>
+                    </lightning-input>
+                </div>
+                
+            </div>
+        </div>
+    </lightning-card>
+    </div>
+
+    <!-- Kanban Columns -->
+    <div class="slds-grid slds-wrap slds-gutters">
+        <template for:each={column} for:item="col">
+            <div key={col.name}
+                 class="slds-col slds-size_1-of-5 slds-p-around_small"
+                 ondrop={handleDrop}
+                 ondragover={allowDrop}
+                 data-stage={col.name}>
+
+                <lightning-card title={col.label} class="slds-m-around_x-small" style="min-height:240px;">
+                    <div class="slds-p-around_small slds-scrollable_y" style="max-height:55vh;">
+                        
+                        <template for:each={col.records} for:item="rec">
+                            <article key={rec.Id}
+                                     class="slds-m-bottom_small"
+                                     draggable="true"
+                                     data-id={rec.Id}
+                                     data-stage={col.name}
+                                     ondragstart={handleDrag}>
+
+                                <div class="slds-box slds-theme_default" 
+                                     style="border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.2); padding:0.75rem;">
+                                    <h3 class="slds-text-heading_small slds-truncate slds-text-title_bold">
+                                        {rec.Subject}
+                                    </h3>
+                                    <p>Status: {rec.Status}</p>
+                                    <p>Priority: {rec.Priority}</p>
+                                    <p>CreatedDate: {rec.CreateDate}</p>
+                                </div>
+
+                            </article>
+                        </template>
+                    </div>
+                </lightning-card>
+            </div>
+        </template>
+    </div>
+</template>

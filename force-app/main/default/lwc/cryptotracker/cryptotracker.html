@@ -1,0 +1,22 @@
+<template>
+    <lightning-card title="Crypto Prices" icon-name="custom:custom63">
+        <div class="slds-p-around_medium">
+            <p>Bitcoin (BTC): <strong>₹{btcPrice}</strong></p>
+            <p>Ethereum (ETH): <strong>₹{ethPrice}</strong></p>
+            <p><i>Last Updated: {lastUpdated}</i></p>
+        </div>
+
+        <div class="slds-p-around_medium">
+            <lightning-button 
+                variant="brand" 
+                label="Refresh Prices" 
+                onclick={handleRefresh} 
+                disabled={isLoading}>
+            </lightning-button>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+            </template>
+        </div>
+    </lightning-card>
+</template>

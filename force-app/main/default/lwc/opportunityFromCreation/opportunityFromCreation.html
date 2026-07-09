@@ -1,0 +1,36 @@
+<template>
+    <lightning-card title="Opportunity Form" icon-name="standard:opportunity">
+        <div class="slds-p-around_small slds-m-top_large">
+
+            <lightning-input label="Name" value={OppName} onchange={handleInputChange}
+                placeholder="Enter Opportunity Name" required data-id="OppName">
+            </lightning-input>
+
+            <lightning-input type="Number" label="Amount" value={OppAmount} onchange={handleInputChange}
+                placeholder="Enter Amount" data-id="OppAmount">
+            </lightning-input>
+
+            <lightning-input type="date" label="Close Date" value={OppCloseDate} onchange={handleInputChange}
+                placeholder="Select Close Date" required data-id="OppCloseDate">
+            </lightning-input>
+
+            <lightning-combobox value={stageName} placeholder="Select Stage" label="Stage" options={stageOption}
+                onchange={handleInputChange} data-id="stageName" required>
+            </lightning-combobox>
+
+            <lightning-combobox value={Type} placeholder="Select Type" label="Type" options={Types}
+                onchange={handleInputChange} data-id="Type">
+            </lightning-combobox>
+
+            <div class="slds-align_absolute-center slds-p-top_medium">
+                <lightning-button label="Save" onclick={handleSave} variant="brand" disabled={isLoading}>
+                </lightning-button>
+            </div>
+
+            <div if:true={isLoading} class="slds-align_absolute-center slds-p-top_small">
+                <lightning-spinner alternative-text="Saving..." size="small"></lightning-spinner>
+            </div>
+
+        </div>
+    </lightning-card>
+</template>

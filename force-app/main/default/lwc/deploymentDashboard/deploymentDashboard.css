@@ -1,0 +1,52 @@
+.metadata-item{
+
+    padding:10px;
+
+    border-bottom:1px solid #d8dde6;
+
+    cursor:pointer;
+}
+
+.metadata-item:hover{
+
+    background:#f4f6f9;
+}
+
+.component-panel{
+
+    height:450px;
+
+    overflow-y:auto;
+}
+
+.selected-item{
+
+    padding:10px;
+
+    border-bottom:1px solid #d8dde6;
+
+    background:#f4f6f9;
+}
+
+.metadata-dropdown-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.slds-listbox__item {
+    cursor: pointer;
+}
+
+.slds-listbox__option_plain {
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+.slds-listbox__option-icon {
+    margin-right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+}
