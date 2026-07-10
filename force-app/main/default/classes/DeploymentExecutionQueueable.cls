@@ -412,7 +412,13 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             List<Schema.SObjectType> refTo = dfr.getReferenceTo();
             if (!refTo.isEmpty()) {
                 metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
-                String relName = dfr.getRelationshipName();
+                String relName = null;
+                for (Schema.ChildRelationship cr : refTo[0].getDescribe().getChildRelationships()) {
+                    if (cr.getField() == dfr.getSObjectField()) {
+                        relName = cr.getRelationshipName();
+                        break;
+                    }
+                }
                 if (String.isNotBlank(relName)) {
                     if (relName.endsWith('__r')) {
                         relName = relName.removeEnd('__r');
