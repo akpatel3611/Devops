@@ -253,12 +253,32 @@ public with sharing class GitHubCommitProvider implements IGitCommitProvider {
         HttpRequest req = createHttpRequest(endpoint, 'POST', token, JSON.serialize(payload));
         HttpResponse res = sendHttpRequest(req, errors);
         if (res == null || res.getStatusCode() != 201) {
+            if (res != null && res.getStatusCode() == 422) {
+                String resBody = res.getBody();
+                if (resBody.contains('A pull request already exists')) {
+                    errors.clear();
+                    return fetchExistingPullRequest(baseUrl, token, owner, repo, head, errors);
+                }
+            }
             if (errors.isEmpty()) {
                 errors.add('Failed to create Pull Request: ' + (res != null ? res.getBody() : 'Connection timeout'));
             }
             return null;
         }
         return (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
+    }
+
+    private static Map<String, Object> fetchExistingPullRequest(String baseUrl, String token, String owner, String repo, String head, List<String> errors) {
+        String endpoint = baseUrl + '/repos/' + owner + '/' + repo + '/pulls?head=' + owner + ':' + head + '&state=open';
+        HttpRequest req = createHttpRequest(endpoint, 'GET', token, null);
+        HttpResponse res = sendHttpRequest(req, errors);
+        if (res != null && res.getStatusCode() == 200) {
+            List<Object> pullList = (List<Object>) JSON.deserializeUntyped(res.getBody());
+            if (!pullList.isEmpty()) {
+                return (Map<String, Object>) pullList[0];
+            }
+        }
+        return null;
     }
 
     // ----------------------------------------------------
@@ -283,17 +303,24 @@ public with sharing class GitHubCommitProvider implements IGitCommitProvider {
     }
 
     private static HttpResponse sendHttpRequest(HttpRequest req, List<String> errors) {
+        System.debug('HTTP REQUEST ENDPOINT: ' + req.getEndpoint());
+        System.debug('HTTP REQUEST METHOD: ' + req.getMethod());
+        System.debug('HTTP REQUEST BODY: ' + req.getBody());
         try {
             Http http = new Http();
             HttpResponse res = http.send(req);
+            System.debug('HTTP RESPONSE STATUS: ' + res.getStatusCode() + ' ' + res.getStatus());
+            System.debug('HTTP RESPONSE BODY: ' + res.getBody());
             if (res.getStatusCode() >= 300) {
                 handleHttpError(res, errors);
             }
             return res;
         } catch (CalloutException ex) {
+            System.debug('HTTP CALLOUT EXCEPTION: ' + ex.getMessage());
             errors.add('Connection Failure: Network timeout or endpoint not reachable. ' + ex.getMessage());
             return null;
         } catch (Exception ex) {
+            System.debug('HTTP EXCEPTION: ' + ex.getMessage());
             errors.add('Request Failure: ' + ex.getMessage());
             return null;
         }
