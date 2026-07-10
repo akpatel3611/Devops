@@ -127,7 +127,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         // Pass 1: Deploy Custom Objects first
         for (User_Story_Metadata__c comp : comps) {
             if (comp.Metadata_Type__c == 'CustomObject') {
-                deployCustomObject(comp.Metadata_API_Name__c, targetUrl, targetToken);
+                if (comp.Metadata_API_Name__c != null && comp.Metadata_API_Name__c.endsWith('__c')) {
+                    deployCustomObject(comp.Metadata_API_Name__c, targetUrl, targetToken);
+                } else {
+                    addLog('Component ' + comp.Metadata_API_Name__c + ' is not a valid CustomObject API name. Skipping.');
+                }
             }
         }
 
@@ -223,7 +227,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
     private void deployApexClassInMemory(String apiName, String targetUrl, String targetToken) {
         List<ApexClass> localClasses = [SELECT Name, Body FROM ApexClass WHERE Name = :apiName LIMIT 1];
         if (localClasses.isEmpty()) {
-            throw new DeploymentExecutionException('ApexClass ' + apiName + ' not found in the source org.');
+            addLog('ApexClass ' + apiName + ' not found in the source org. Skipping deployment.');
+            return;
         }
         String classBody = localClasses[0].Body;
 
