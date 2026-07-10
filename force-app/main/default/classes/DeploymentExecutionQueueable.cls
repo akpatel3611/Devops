@@ -297,7 +297,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         
         Http h = new Http();
         HttpRequest queryReq = new HttpRequest();
-        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+Id+FROM+CustomObject+WHERE+DeveloperName=\'' + devName + '\'');
+        String objSoql = 'SELECT Id FROM CustomObject WHERE DeveloperName = \'' + devName + '\'';
+        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(objSoql, 'UTF-8'));
         queryReq.setMethod('GET');
         queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
         queryReq.setHeader('Content-Type', 'application/json');
@@ -325,7 +326,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         
         Http h = new Http();
         HttpRequest queryReq = new HttpRequest();
-        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+Id+FROM+CustomObject+WHERE+DeveloperName=\'' + devName + '\'');
+        String objSoql = 'SELECT Id FROM CustomObject WHERE DeveloperName = \'' + devName + '\'';
+        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(objSoql, 'UTF-8'));
         queryReq.setMethod('GET');
         queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
         queryReq.setHeader('Content-Type', 'application/json');
@@ -344,22 +346,24 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             String objId = (String) objRecord.get('Id');
             
             HttpRequest fieldReq = new HttpRequest();
-            fieldReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+DeveloperName+FROM+CustomField+WHERE+TableEnumOrId=\'' + objId + '\'');
+            String fieldSoql = 'SELECT DeveloperName FROM CustomField WHERE TableEnumOrId = \'' + objId + '\'';
+            fieldReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(fieldSoql, 'UTF-8'));
             fieldReq.setMethod('GET');
             fieldReq.setHeader('Authorization', 'Bearer ' + targetToken);
             fieldReq.setHeader('Content-Type', 'application/json');
             
             HttpResponse fieldRes = h.send(fieldReq);
-            if (fieldRes.getStatusCode() == 200) {
-                Map<String, Object> fieldResp = (Map<String, Object>) JSON.deserializeUntyped(fieldRes.getBody());
-                List<Object> fieldRecords = (List<Object>) fieldResp.get('records');
-                if (fieldRecords != null) {
-                    for (Object fRec : fieldRecords) {
-                        Map<String, Object> fMap = (Map<String, Object>) fRec;
-                        String devFieldName = (String) fMap.get('DeveloperName');
-                        if (String.isNotBlank(devFieldName)) {
-                            existingFields.add((devFieldName + '__c').toLowerCase());
-                        }
+            if (fieldRes.getStatusCode() != 200) {
+                throw new DeploymentExecutionException('Failed to query custom fields in target org: ' + fieldRes.getBody());
+            }
+            Map<String, Object> fieldResp = (Map<String, Object>) JSON.deserializeUntyped(fieldRes.getBody());
+            List<Object> fieldRecords = (List<Object>) fieldResp.get('records');
+            if (fieldRecords != null) {
+                for (Object fRec : fieldRecords) {
+                    Map<String, Object> fMap = (Map<String, Object>) fRec;
+                    String devFieldName = (String) fMap.get('DeveloperName');
+                    if (String.isNotBlank(devFieldName)) {
+                        existingFields.add((devFieldName + '__c').toLowerCase());
                     }
                 }
             }
@@ -582,7 +586,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
 
         Http h = new Http();
         HttpRequest queryReq = new HttpRequest();
-        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+Id+FROM+ApexClass+WHERE+Name=\'' + apiName + '\'');
+        String classSoql = 'SELECT Id FROM ApexClass WHERE Name = \'' + apiName + '\'';
+        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(classSoql, 'UTF-8'));
         queryReq.setMethod('GET');
         queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
         queryReq.setHeader('Content-Type', 'application/json');
