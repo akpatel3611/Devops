@@ -77,3 +77,4 @@ implements Database.Batchable<SObject> {
         );
     }
 }
+/* Simulated metadata content for AsyncBatch (ApexClass) */
