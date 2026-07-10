@@ -51,6 +51,29 @@ public with sharing class GitHubCommitProvider implements IGitCommitProvider {
             List<Map<String, Object>> treeNodes = new List<Map<String, Object>>();
             for (GitMetadataItem item : normalizedMetadata) {
                 String content = '/* Simulated metadata content for ' + item.apiName + ' (' + item.metadataType + ') */';
+                
+                if (item.metadataType == 'ApexClass') {
+                    if (item.filePath.endsWith('.cls')) {
+                        List<ApexClass> cls = [SELECT Body FROM ApexClass WHERE Name = :item.apiName LIMIT 1];
+                        if (!cls.isEmpty()) {
+                            content = cls[0].Body;
+                        }
+                    } else if (item.filePath.endsWith('.cls-meta.xml')) {
+                        content = '<?xml version="1.0" encoding="UTF-8"?>\n<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">\n    <apiVersion>60.0</apiVersion>\n    <status>Active</status>\n</ApexClass>';
+                    }
+                } else if (item.metadataType == 'ApexTrigger') {
+                    if (item.filePath.endsWith('.trigger')) {
+                        List<ApexTrigger> trg = [SELECT Body FROM ApexTrigger WHERE Name = :item.apiName LIMIT 1];
+                        if (!trg.isEmpty()) {
+                            content = trg[0].Body;
+                        }
+                    } else if (item.filePath.endsWith('.trigger-meta.xml')) {
+                        content = '<?xml version="1.0" encoding="UTF-8"?>\n<ApexTrigger xmlns="http://soap.sforce.com/2006/04/metadata">\n    <apiVersion>60.0</apiVersion>\n    <status>Active</status>\n</ApexTrigger>';
+                    }
+                } else if (item.metadataType == 'CustomObject') {
+                    content = '<?xml version="1.0" encoding="UTF-8"?>\n<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">\n    <deploymentStatus>Deployed</deploymentStatus>\n    <sharingModel>ReadWrite</sharingModel>\n</CustomObject>';
+                }
+
                 String blobSha = executeCreateBlob(baseUrl, token, context.repositoryOwner, context.repositoryName, content, result.errors);
                 if (String.isBlank(blobSha)) {
                     return result;
