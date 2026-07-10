@@ -122,12 +122,53 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             return;
         }
 
+        // Auto-inject missing async framework dependencies if deploying any async component
+        Boolean hasAsync = false;
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_API_Name__c != null && comp.Metadata_API_Name__c.startsWith('Async')) {
+                hasAsync = true;
+                break;
+            }
+        }
+        if (hasAsync) {
+            Set<String> existingNames = new Set<String>();
+            for (User_Story_Metadata__c comp : comps) {
+                existingNames.add(comp.Metadata_API_Name__c);
+            }
+            
+            List<String> coreAsyncNames = new List<String>{
+                'Async_Process_Event__e',
+                'AsyncEventManager',
+                'AsyncEventPublisher',
+                'AsyncUtil',
+                'AsyncProcessor'
+            };
+            List<String> coreAsyncTypes = new List<String>{
+                'CustomObject',
+                'ApexClass',
+                'ApexClass',
+                'ApexClass',
+                'ApexClass'
+            };
+            
+            for (Integer i = 0; i < coreAsyncNames.size(); i++) {
+                String name = coreAsyncNames[i];
+                if (!existingNames.contains(name)) {
+                    User_Story_Metadata__c injected = new User_Story_Metadata__c();
+                    injected.Metadata_API_Name__c = name;
+                    injected.Metadata_Type__c = coreAsyncTypes[i];
+                    injected.Action__c = 'Add';
+                    comps.add(injected);
+                }
+            }
+        }
+
         addLog('Initiating real-time deployment of selected components...');
 
-        // Pass 1: Deploy Custom Objects first
+        // Pass 1: Deploy Custom Objects / Platform Events first
         for (User_Story_Metadata__c comp : comps) {
             if (comp.Metadata_Type__c == 'CustomObject') {
-                if (comp.Metadata_API_Name__c != null && comp.Metadata_API_Name__c.endsWith('__c')) {
+                if (comp.Metadata_API_Name__c != null && (comp.Metadata_API_Name__c.endsWith('__c') || comp.Metadata_API_Name__c.endsWith('__e'))) {
                     deployCustomObject(comp.Metadata_API_Name__c, targetUrl, targetToken);
                 } else {
                     addLog('Component ' + comp.Metadata_API_Name__c + ' is not a valid CustomObject API name. Skipping.');
@@ -159,7 +200,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             LIMIT 1
         ];
         
-        String label = apiName.replace('__c', '').replace('_', ' ');
+        String label = apiName.replace('__c', '').replace('__e', '').replace('_', ' ');
         String pluralLabel = label + 's';
         
         if (!entities.isEmpty()) {
@@ -171,8 +212,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
         }
 
-        // Query if custom object exists in target org
-        String devName = apiName.replace('__c', '');
+        // Query if custom object / Platform Event exists in target org
+        String devName = apiName.replace('__c', '').replace('__e', '');
         
         Http h = new Http();
         HttpRequest queryReq = new HttpRequest();
@@ -329,11 +370,16 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         metadata.add('<met:label>' + label + '</met:label>');
         metadata.add('<met:pluralLabel>' + pluralLabel + '</met:pluralLabel>');
         metadata.add('<met:deploymentStatus>Deployed</met:deploymentStatus>');
-        metadata.add('<met:sharingModel>ReadWrite</met:sharingModel>');
-        metadata.add('<met:nameField>');
-        metadata.add('<met:label>' + label + ' Name</met:label>');
-        metadata.add('<met:type>Text</met:type>');
-        metadata.add('</met:nameField>');
+        if (apiName.endsWith('__e')) {
+            metadata.add('<met:eventType>HighVolume</met:eventType>');
+            metadata.add('<met:publishBehavior>PublishAfterCommit</met:publishBehavior>');
+        } else {
+            metadata.add('<met:sharingModel>ReadWrite</met:sharingModel>');
+            metadata.add('<met:nameField>');
+            metadata.add('<met:label>' + label + ' Name</met:label>');
+            metadata.add('<met:type>Text</met:type>');
+            metadata.add('</met:nameField>');
+        }
         metadata.add('</met:metadata>');
 
         String soap = '';
