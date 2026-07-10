@@ -18,7 +18,10 @@ public with sharing class PipelineRuntimeUpdaterService {
         if (pipelineId != null) {
             Pipeline__c pipe = new Pipeline__c(Id = pipelineId);
             putIfFieldExists(pipe, 'Current_User_Story__c', userStoryId);
-            putIfFieldExists(pipe, 'Current_Deployment_Request__c', deploymentRequestId);
+            Schema.DescribeFieldResult fld = Pipeline__c.Current_Deployment_Request__c.getDescribe();
+            if (fld != null && fld.getReferenceTo()[0] == Deployment_Request__c.SObjectType) {
+                putIfFieldExists(pipe, 'Current_Deployment_Request__c', deploymentRequestId);
+            }
             putIfFieldExists(pipe, 'Metadata_Count__c', metadataCount);
             putIfFieldExists(pipe, 'Deployable_Count__c', deployableCount);
             putIfFieldExists(pipe, 'Unsupported_Count__c', unsupportedCount);

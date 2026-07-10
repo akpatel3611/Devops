@@ -278,7 +278,10 @@ public with sharing class PipelineRuntimeService {
             return;
         }
 
-        putIfFieldExists(currentPipeline, 'Current_Deployment_Request__c', currentDeploymentRequest != null ? currentDeploymentRequest.Id : null);
+        Schema.DescribeFieldResult fld = Pipeline__c.Current_Deployment_Request__c.getDescribe();
+        if (fld != null && fld.getReferenceTo()[0] == Deployment_Request__c.SObjectType) {
+            putIfFieldExists(currentPipeline, 'Current_Deployment_Request__c', currentDeploymentRequest != null ? currentDeploymentRequest.Id : null);
+        }
         putIfFieldExists(currentPipeline, 'Current_User_Story__c', currentUserStory != null ? currentUserStory.Id : null);
 
         // Find Repository Lookup Id dynamically from the Pipeline record fields if available
@@ -333,18 +336,22 @@ public with sharing class PipelineRuntimeService {
     // --- Dynamic Schema Helper Methods ---
 
     private static List<String> getExistingFields(String objectName, List<String> fieldNames) {
-        List<String> validFields = new List<String>{ 'Id' };
+        Set<String> uniqueFields = new Set<String>{ 'Id' };
         Schema.SObjectType sobjType = Schema.getGlobalDescribe().get(objectName);
         if (sobjType == null) {
-            return validFields;
+            return new List<String>(uniqueFields);
         }
         Map<String, Schema.SObjectField> fieldsMap = sobjType.getDescribe().fields.getMap();
         for (String fieldName : fieldNames) {
             if (fieldsMap.containsKey(fieldName.toLowerCase()) || fieldsMap.containsKey(fieldName)) {
-                validFields.add(fieldName);
+                String correctName = fieldName;
+                if (fieldsMap.containsKey(fieldName.toLowerCase())) {
+                    correctName = fieldsMap.get(fieldName.toLowerCase()).getDescribe().getName();
+                }
+                uniqueFields.add(correctName);
             }
         }
-        return validFields;
+        return new List<String>(uniqueFields);
     }
 
     private static void putIfFieldExists(SObject record, String fieldName, Object value) {
