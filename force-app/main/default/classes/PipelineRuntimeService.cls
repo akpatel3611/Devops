@@ -278,15 +278,12 @@ public with sharing class PipelineRuntimeService {
             return;
         }
 
-        Schema.DescribeFieldResult fld = Pipeline__c.Current_Deployment_Request__c.getDescribe();
-        if (fld != null && fld.getReferenceTo()[0] == Deployment_Request__c.SObjectType) {
-            putIfFieldExists(currentPipeline, 'Current_Deployment_Request__c', currentDeploymentRequest != null ? currentDeploymentRequest.Id : null);
-        }
-        putIfFieldExists(currentPipeline, 'Current_User_Story__c', currentUserStory != null ? currentUserStory.Id : null);
+        putLookupIfValid(currentPipeline, 'Current_Deployment_Request__c', currentDeploymentRequest != null ? currentDeploymentRequest.Id : null);
+        putLookupIfValid(currentPipeline, 'Current_User_Story__c', currentUserStory != null ? currentUserStory.Id : null);
 
         // Find Repository Lookup Id dynamically from the Pipeline record fields if available
         Id repositoryId = (Id) getFirstExistingFieldValue(currentPipeline, new List<String>{ 'Git_Repository__c', 'Repository__c' });
-        putIfFieldExists(currentPipeline, 'Current_Repository__c', repositoryId);
+        putLookupIfValid(currentPipeline, 'Current_Repository__c', repositoryId);
 
         putIfFieldExists(currentPipeline, 'Current_Branch__c', currentBranch);
         putIfFieldExists(currentPipeline, 'Current_PR_Number__c', currentPrNumber);
@@ -361,6 +358,31 @@ public with sharing class PipelineRuntimeService {
         Map<String, Schema.SObjectField> fieldsMap = record.getSObjectType().getDescribe().fields.getMap();
         if (fieldsMap.containsKey(fieldName.toLowerCase()) || fieldsMap.containsKey(fieldName)) {
             record.put(fieldName, value);
+        }
+    }
+
+    private static void putLookupIfValid(SObject record, String fieldName, Id targetId) {
+        if (record == null) {
+            return;
+        }
+        if (targetId == null) {
+            putIfFieldExists(record, fieldName, null);
+            return;
+        }
+        Map<String, Schema.SObjectField> fieldsMap = record.getSObjectType().getDescribe().fields.getMap();
+        Schema.SObjectField fld = fieldsMap.containsKey(fieldName.toLowerCase()) ? fieldsMap.get(fieldName.toLowerCase()) : fieldsMap.get(fieldName);
+        if (fld != null) {
+            Schema.DescribeFieldResult fldDesc = fld.getDescribe();
+            if (fldDesc.getType() == Schema.DisplayType.Reference && !fldDesc.getReferenceTo().isEmpty()) {
+                Schema.SObjectType refType = fldDesc.getReferenceTo()[0];
+                if (refType == targetId.getSObjectType()) {
+                    record.put(fieldName, targetId);
+                } else {
+                    System.debug(LoggingLevel.WARN, 'Skipped lookup ' + fieldName + ' due to target type mismatch.');
+                }
+            } else {
+                putIfFieldExists(record, fieldName, targetId);
+            }
         }
     }
 

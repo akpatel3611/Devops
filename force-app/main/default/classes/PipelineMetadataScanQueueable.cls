@@ -66,6 +66,11 @@ public with sharing class PipelineMetadataScanQueueable implements Queueable, Da
                 throw new PipelineMetadataScanQueueableException(errorMsg);
             }
 
+            // Step 3: Trigger the actual Salesforce deployment for this request
+            if (this.deploymentRequestId != null) {
+                DeploymentRuntimeService.startDeployment(this.deploymentRequestId, 'Deploy');
+            }
+
         } catch (Exception ex) {
             System.debug(LoggingLevel.ERROR, 'Exception in PipelineMetadataScanQueueable: ' + ex.getMessage());
             updatePipelineToFailed(pipelineId);

@@ -17,11 +17,8 @@ public with sharing class PipelineRuntimeUpdaterService {
         // 1. Update Pipeline__c
         if (pipelineId != null) {
             Pipeline__c pipe = new Pipeline__c(Id = pipelineId);
-            putIfFieldExists(pipe, 'Current_User_Story__c', userStoryId);
-            Schema.DescribeFieldResult fld = Pipeline__c.Current_Deployment_Request__c.getDescribe();
-            if (fld != null && fld.getReferenceTo()[0] == Deployment_Request__c.SObjectType) {
-                putIfFieldExists(pipe, 'Current_Deployment_Request__c', deploymentRequestId);
-            }
+            putLookupIfValid(pipe, 'Current_User_Story__c', userStoryId);
+            putLookupIfValid(pipe, 'Current_Deployment_Request__c', deploymentRequestId);
             putIfFieldExists(pipe, 'Metadata_Count__c', metadataCount);
             putIfFieldExists(pipe, 'Deployable_Count__c', deployableCount);
             putIfFieldExists(pipe, 'Unsupported_Count__c', unsupportedCount);
@@ -60,6 +57,31 @@ public with sharing class PipelineRuntimeUpdaterService {
         Map<String, Schema.SObjectField> fieldsMap = record.getSObjectType().getDescribe().fields.getMap();
         if (fieldsMap.containsKey(fieldName.toLowerCase()) || fieldsMap.containsKey(fieldName)) {
             record.put(fieldName, value);
+        }
+    }
+
+    private static void putLookupIfValid(SObject record, String fieldName, Id targetId) {
+        if (record == null) {
+            return;
+        }
+        if (targetId == null) {
+            putIfFieldExists(record, fieldName, null);
+            return;
+        }
+        Map<String, Schema.SObjectField> fieldsMap = record.getSObjectType().getDescribe().fields.getMap();
+        Schema.SObjectField fld = fieldsMap.containsKey(fieldName.toLowerCase()) ? fieldsMap.get(fieldName.toLowerCase()) : fieldsMap.get(fieldName);
+        if (fld != null) {
+            Schema.DescribeFieldResult fldDesc = fld.getDescribe();
+            if (fldDesc.getType() == Schema.DisplayType.Reference && !fldDesc.getReferenceTo().isEmpty()) {
+                Schema.SObjectType refType = fldDesc.getReferenceTo()[0];
+                if (refType == targetId.getSObjectType()) {
+                    record.put(fieldName, targetId);
+                } else {
+                    System.debug(LoggingLevel.WARN, 'Skipped lookup ' + fieldName + ' due to target type mismatch.');
+                }
+            } else {
+                putIfFieldExists(record, fieldName, targetId);
+            }
         }
     }
 }
