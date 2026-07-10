@@ -11,7 +11,7 @@ implements Database.Batchable<SObject> {
     public Database.QueryLocator start(
         Database.BatchableContext bc
     ) {
-
+        System.debug('demo');
         AsyncEventManager.publishStartEvent(
 
             recordId,
