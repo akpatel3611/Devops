@@ -141,10 +141,14 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 'AsyncEventManager',
                 'AsyncEventPublisher',
                 'AsyncUtil',
-                'AsyncProcessor'
+                'AsyncProcessor',
+                'AsyncProcessService',
+                'AsyncProcessQueueable'
             };
             List<String> coreAsyncTypes = new List<String>{
                 'CustomObject',
+                'ApexClass',
+                'ApexClass',
                 'ApexClass',
                 'ApexClass',
                 'ApexClass',
@@ -189,7 +193,9 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             'AsyncUtil',
             'AsyncEventPublisher',
             'AsyncEventManager',
-            'AsyncProcessor'
+            'AsyncProcessor',
+            'AsyncProcessService',
+            'AsyncProcessQueueable'
         };
         for (String coreName : corePriority) {
             for (User_Story_Metadata__c comp : classComps) {
