@@ -1,5 +1,1 @@
-public class HelloWorld {
-    public static void sayHello() {
-        system.debug('Hello, World!');
-    }
-}
+/* Simulated metadata content for HelloWorld (ApexClass) */
