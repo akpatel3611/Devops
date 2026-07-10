@@ -498,7 +498,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         containerReq.setHeader('Content-Type', 'application/json');
         
         Map<String, Object> containerPayload = new Map<String, Object>();
-        containerPayload.put('Name', 'Deploy_' + apiName + '_' + System.now().getTime());
+        containerPayload.put('Name', 'Ctr_' + System.now().getTime());
         containerReq.setBody(JSON.serialize(containerPayload));
         
         HttpResponse containerRes = h.send(containerReq);
