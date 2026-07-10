@@ -27,7 +27,7 @@ public with sharing class GitHubCommitProvider implements IGitCommitProvider {
                 return result;
             }
             String token = cred.Access_Token__c;
-            String baseUrl = String.isNotBlank(cred.Instance_URL__c) ? cred.Instance_URL__c : 'https://api.github.com';
+            String baseUrl = String.isNotBlank(cred.Instance_URL__c) && cred.Instance_URL__c.contains('github.com') ? cred.Instance_URL__c : 'https://api.github.com';
 
             // Step 3: Metadata Normalization
             List<GitMetadataItem> normalizedMetadata = buildMetadataPackage(context.selectedMetadata, result.errors);

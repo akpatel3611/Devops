@@ -318,4 +318,140 @@ public with sharing class MetadataSelectionController {
         }
         return p;
     }
+
+    @AuraEnabled
+    public static PRStatusResult checkPRStatusAndDeploy(Id userStoryId, String prNumber, String prUrl, String branchName) {
+        PRStatusResult res = new PRStatusResult();
+        res.isMerged = false;
+        res.status = 'Pending';
+        res.logs = new List<Deployment_Log__c>();
+        
+        try {
+            List<Deployment_Request__c> reqs = [
+                SELECT Id, Status__c
+                FROM Deployment_Request__c
+                WHERE User_Story__c = :userStoryId
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
+            if (reqs.isEmpty()) {
+                res.message = 'No active Deployment Request found.';
+                return res;
+            }
+            Deployment_Request__c dreq = reqs[0];
+            res.requestId = dreq.Id;
+            res.status = dreq.Status__c;
+            
+            res.logs = [
+                SELECT Id, Log_Type__c, Message__c, Timestamp__c
+                FROM Deployment_Log__c
+                WHERE Deployment_Request__c = :dreq.Id
+                ORDER BY Timestamp__c ASC
+                LIMIT 100
+            ];
+            
+            if (dreq.Status__c == 'Completed' || dreq.Status__c == 'Failed') {
+                res.isMerged = true;
+                return res;
+            }
+            
+            // Check credentials to retrieve active token
+            Credentials__c cred = null;
+            List<Credentials__c> activeCreds = [
+                SELECT Access_Token__c, Instance_URL__c
+                FROM Credentials__c
+                WHERE Instance_URL__c LIKE '%github.com%'
+                LIMIT 1
+            ];
+            if (activeCreds.isEmpty()) {
+                activeCreds = [
+                    SELECT Access_Token__c, Instance_URL__c
+                    FROM Credentials__c
+                    LIMIT 1
+                ];
+            }
+            if (!activeCreds.isEmpty()) {
+                cred = activeCreds[0];
+            } else {
+                res.message = 'No active Credentials found to communicate with GitHub.';
+                return res;
+            }
+            
+            String token = cred.Access_Token__c;
+            
+            User_Story__c story = [
+                SELECT Id, Project__c, Project__r.Git_Repository__c,
+                       Project__r.Git_Repository__r.Repository_Name__c,
+                       Project__r.Git_Repository__r.Repository_Owner__c
+                FROM User_Story__c
+                WHERE Id = :userStoryId
+                LIMIT 1
+            ];
+            
+            String owner = story.Project__r.Git_Repository__r.Repository_Owner__c;
+            String repo = story.Project__r.Git_Repository__r.Repository_Name__c;
+            
+            String endpoint = 'https://api.github.com/repos/' + owner + '/' + repo + '/pulls/' + prNumber;
+            
+            Http http = new Http();
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(endpoint);
+            req.setMethod('GET');
+            req.setTimeout(60000);
+            req.setHeader('Accept', 'application/vnd.github+json');
+            req.setHeader('User-Agent', 'Salesforce-Release-Management');
+            req.setHeader('Authorization', 'Bearer ' + token);
+            
+            HttpResponse response = http.send(req);
+            if (response.getStatusCode() == 200) {
+                Map<String, Object> prMap = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+                Boolean merged = (Boolean) prMap.get('merged');
+                String state = (String) prMap.get('state');
+                
+                if (merged || state == 'closed') {
+                    res.isMerged = true;
+                    if (merged) {
+                        // Merge verified on GitHub. Initialize pipeline deployment!
+                        res.status = 'Pending';
+
+                        GitHubRecordService.GitHubRecordData requestData = new GitHubRecordService.GitHubRecordData();
+                        requestData.sourceBranch = branchName;
+                        requestData.pullRequestNumber = Integer.valueOf(prNumber);
+                        requestData.pullRequestUrl = prUrl;
+                        if (prMap.containsKey('head') && prMap.get('head') != null) {
+                            requestData.sourceSha = (String) ((Map<String, Object>) prMap.get('head')).get('sha');
+                        }
+                        
+                        PipelineRuntimeService.startPipeline(dreq.Id, requestData);
+                        res.message = 'PR Merged! Deployment pipeline started successfully.';
+                    } else {
+                        res.message = 'PR was closed without merging.';
+                        dreq.Status__c = 'Failed';
+                        update dreq;
+                        
+                        User_Story__c us = new User_Story__c(Id = userStoryId);
+                        us.Build_Status__c = 'Not Started';
+                        us.PR_Status__c = 'Failed';
+                        update us;
+                    }
+                } else {
+                    res.message = 'PR is still open. Waiting for merge...';
+                }
+            } else {
+                res.message = 'Failed to fetch PR status: ' + response.getStatus();
+            }
+        } catch(Exception ex) {
+            res.message = 'Error: ' + ex.getMessage();
+        }
+        
+        return res;
+    }
+    
+    public class PRStatusResult {
+        @AuraEnabled public Boolean isMerged {get;set;}
+        @AuraEnabled public String status {get;set;}
+        @AuraEnabled public String message {get;set;}
+        @AuraEnabled public Id requestId {get;set;}
+        @AuraEnabled public List<Deployment_Log__c> logs {get;set;}
+    }
 }

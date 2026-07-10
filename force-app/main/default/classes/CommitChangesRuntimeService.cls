@@ -80,9 +80,6 @@ public with sharing class CommitChangesRuntimeService {
             );
         }
 
-        // Create transaction savepoint to guarantee atomicity and prevent partial database updates
-        System.Savepoint sp = Database.setSavepoint();
-
         try {
             // Step 1: Build Runtime Context (Loads all data via single SOQL step to avoid duplicates)
             RuntimeContext context = buildRuntimeContext(userStoryId);
@@ -147,7 +144,6 @@ public with sharing class CommitChangesRuntimeService {
             );
 
         } catch (Exception ex) {
-            Database.rollback(sp);
             List<String> errs = new List<String>{ ex.getMessage() };
             return createResult(false, 'Exception occurred during commit: ' + ex.getMessage(), userStoryId, null, null, null, null, null, null, errs);
         }
@@ -346,6 +342,7 @@ public with sharing class CommitChangesRuntimeService {
             SELECT Id, Status__c, User_Story__c
             FROM Deployment_Request__c
             WHERE User_Story__c = :userStoryId
+            ORDER BY CreatedDate DESC
             LIMIT 1
         ];
 
