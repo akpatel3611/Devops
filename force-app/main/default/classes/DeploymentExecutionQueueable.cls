@@ -368,6 +368,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 }
             }
         }
+        addLog('Existing fields in target org for ' + apiName + ': ' + String.join(new List<String>(existingFields), ', '));
 
         // Deploy all custom fields for this object
         addLog('Deploying custom fields for ' + apiName + '...');
