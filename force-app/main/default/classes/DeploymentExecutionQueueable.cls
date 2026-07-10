@@ -459,18 +459,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         deployReq.setHeader('Content-Type', 'application/json');
 
         if (records != null && !records.isEmpty()) {
-            // Update existing class (PATCH)
+            // Update existing class via MetadataContainer to support Sandbox/Prod org compilation
             Map<String, Object> record = (Map<String, Object>) records[0];
             String classId = (String) record.get('Id');
-            
-            deployReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass/' + classId);
-            deployReq.setMethod('PATCH');
-            
-            Map<String, Object> payload = new Map<String, Object>();
-            payload.put('Body', classBody);
-            deployReq.setBody(JSON.serialize(payload));
-            
-            addLog('Updating ApexClass ' + apiName + ' in target org...');
+            deployApexClassViaContainer(apiName, classId, classBody, targetUrl, targetToken);
+            return;
         } else {
             // Create new class (POST)
             deployReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass');
@@ -492,6 +485,106 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         }
         
         addLog('ApexClass ' + apiName + ' deployed successfully.');
+    }
+
+    private void deployApexClassViaContainer(String apiName, String classId, String classBody, String targetUrl, String targetToken) {
+        Http h = new Http();
+        
+        // Step 1: Create MetadataContainer
+        HttpRequest containerReq = new HttpRequest();
+        containerReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/MetadataContainer');
+        containerReq.setMethod('POST');
+        containerReq.setHeader('Authorization', 'Bearer ' + targetToken);
+        containerReq.setHeader('Content-Type', 'application/json');
+        
+        Map<String, Object> containerPayload = new Map<String, Object>();
+        containerPayload.put('Name', 'Deploy_' + apiName + '_' + System.now().getTime());
+        containerReq.setBody(JSON.serialize(containerPayload));
+        
+        HttpResponse containerRes = h.send(containerReq);
+        if (containerRes.getStatusCode() != 201) {
+            throw new DeploymentExecutionException('Failed to create MetadataContainer: ' + containerRes.getBody());
+        }
+        Map<String, Object> containerMap = (Map<String, Object>) JSON.deserializeUntyped(containerRes.getBody());
+        String containerId = (String) containerMap.get('id');
+        
+        // Step 2: Create ApexClassMember
+        HttpRequest memberReq = new HttpRequest();
+        memberReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClassMember');
+        memberReq.setMethod('POST');
+        memberReq.setHeader('Authorization', 'Bearer ' + targetToken);
+        memberReq.setHeader('Content-Type', 'application/json');
+        
+        Map<String, Object> memberPayload = new Map<String, Object>();
+        memberPayload.put('MetadataContainerId', containerId);
+        memberPayload.put('ContentEntityId', classId);
+        memberPayload.put('Body', classBody);
+        memberReq.setBody(JSON.serialize(memberPayload));
+        
+        HttpResponse memberRes = h.send(memberReq);
+        if (memberRes.getStatusCode() != 201) {
+            throw new DeploymentExecutionException('Failed to create ApexClassMember: ' + memberRes.getBody());
+        }
+        
+        // Step 3: Create ContainerAsyncRequest
+        HttpRequest requestReq = new HttpRequest();
+        requestReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest');
+        requestReq.setMethod('POST');
+        requestReq.setHeader('Authorization', 'Bearer ' + targetToken);
+        requestReq.setHeader('Content-Type', 'application/json');
+        
+        Map<String, Object> requestPayload = new Map<String, Object>();
+        requestPayload.put('MetadataContainerId', containerId);
+        requestPayload.put('IsCheckOnly', false);
+        requestReq.setBody(JSON.serialize(requestPayload));
+        
+        HttpResponse requestRes = h.send(requestReq);
+        if (requestRes.getStatusCode() != 201) {
+            throw new DeploymentExecutionException('Failed to create ContainerAsyncRequest: ' + requestRes.getBody());
+        }
+        Map<String, Object> requestMap = (Map<String, Object>) JSON.deserializeUntyped(requestRes.getBody());
+        String compileRequestId = (String) requestMap.get('id');
+        
+        // Step 4: Poll ContainerAsyncRequest status
+        String status = 'Queued';
+        String errorMsg = '';
+        for (Integer i = 0; i < 30; i++) {
+            // Wait 1 second
+            Long start = System.now().getTime();
+            while (System.now().getTime() - start < 1000) {}
+            
+            HttpRequest pollReq = new HttpRequest();
+            pollReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest/' + compileRequestId);
+            pollReq.setMethod('GET');
+            pollReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            
+            HttpResponse pollRes = h.send(pollReq);
+            if (pollRes.getStatusCode() == 200) {
+                Map<String, Object> pollMap = (Map<String, Object>) JSON.deserializeUntyped(pollRes.getBody());
+                status = (String) pollMap.get('State');
+                if (status == 'Completed') {
+                    break;
+                } else if (status == 'Failed') {
+                    errorMsg = (String) pollMap.get('ErrorMsg');
+                    if (pollMap.containsKey('DeployDetails')) {
+                        Map<String, Object> details = (Map<String, Object>) pollMap.get('DeployDetails');
+                        if (details != null && details.containsKey('componentFailures')) {
+                            List<Object> failures = (List<Object>) details.get('componentFailures');
+                            if (failures != null && !failures.isEmpty()) {
+                                Map<String, Object> fail = (Map<String, Object>) failures[0];
+                                errorMsg = (String) fail.get('problem');
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        if (status != 'Completed') {
+            throw new DeploymentExecutionException('Compilation/Deployment failed for ApexClass ' + apiName + ': ' + (String.isNotBlank(errorMsg) ? errorMsg : status));
+        }
+        addLog('ApexClass ' + apiName + ' deployed and compiled successfully.');
     }
 
     private String parseErrorMessage(String body) {
