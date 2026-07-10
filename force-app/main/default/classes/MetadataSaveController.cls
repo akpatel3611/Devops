@@ -23,26 +23,51 @@ public with sharing class MetadataSaveController {
 
         // Fetch User Story to update Source Environment
         User_Story__c story = [
-            SELECT Id, Pipeline__c, Source_Environment__c 
+            SELECT Id, Pipeline__c, Source_Environment__c, Build_Status__c, PR_Status__c 
             FROM User_Story__c 
             WHERE Id = :userStoryId 
             LIMIT 1
         ];
+        
+        Boolean needStoryUpdate = false;
         if (story.Source_Environment__c != sourceEnvironmentId) {
             story.Source_Environment__c = sourceEnvironmentId;
+            needStoryUpdate = true;
+        }
+        if (story.Build_Status__c == 'In Progress' || story.Build_Status__c == 'Queued') {
+            story.Build_Status__c = 'Not Started';
+            story.PR_Status__c = null;
+            needStoryUpdate = true;
+        }
+        if (needStoryUpdate) {
             update story;
         }
 
-        // Check if there is an active Draft Deployment Request
-        List<Deployment_Request__c> existingRequests = [
-            SELECT Id 
+        // Cancel any active/stuck Deployment Requests
+        List<Deployment_Request__c> activeRequests = [
+            SELECT Id, Status__c 
             FROM Deployment_Request__c 
             WHERE User_Story__c = :userStoryId 
-            AND Status__c = 'Draft' 
-            LIMIT 1
+            AND Status__c != 'Completed' 
+            AND Status__c != 'Failed' 
+            AND Status__c != 'Cancelled'
         ];
+        
+        List<Deployment_Request__c> reqsToUpdate = new List<Deployment_Request__c>();
+        List<Deployment_Request__c> draftRequests = new List<Deployment_Request__c>();
+        for (Deployment_Request__c req : activeRequests) {
+            if (req.Status__c != 'Draft') {
+                req.Status__c = 'Cancelled';
+                reqsToUpdate.add(req);
+            } else {
+                draftRequests.add(req);
+            }
+        }
+        if (!reqsToUpdate.isEmpty()) {
+            update reqsToUpdate;
+        }
 
-        if (existingRequests.isEmpty()) {
+        if (draftRequests.isEmpty()) {
             Deployment_Request__c newReq = new Deployment_Request__c(
                 User_Story__c = userStoryId,
                 Source_Environment__c = sourceEnvironmentId,

@@ -437,11 +437,49 @@
                     </div>
                 
                 </template>
+ 
+                <!-- Real-time Deployment Logs Section -->
+                <template if:true={isDeploying}>
+                    <div class="slds-m-top_large">
+                        <lightning-card title="Deployment Execution Status & Logs">
+                            <div class="slds-p-around_medium slds-theme_shade slds-m-bottom_small">
+                                <div class="slds-grid slds-grid_align-spread">
+                                    <div>
+                                        <span class="slds-text-title_bold">Deployment Request Status: </span>
+                                        <span class={statusBadgeClass}>{deploymentStatus}</span>
+                                    </div>
+                                    <template if:true={isWaitingMerge}>
+                                        <div class="slds-text-color_weak slds-italic" style="color: #ff9900; font-weight: bold; font-size: 13px;">
+                                            Please merge the Pull Request on GitHub to trigger Salesforce Deployment.
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="slds-m-top_small">
+                                    <lightning-progress-bar value={deploymentProgress} size="large"></lightning-progress-bar>
+                                </div>
+                                <template if:true={pollingMessage}>
+                                    <div class="slds-m-top_small slds-p-around_x-small slds-theme_warning slds-text-color_weak slds-text-body_small" style="background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 4px; color: #8a6d3b;">
+                                        <strong>System Status Details:</strong> {pollingMessage}
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="slds-box slds-theme_default slds-scrollable_y" style="height: 300px; font-family: monospace; background-color: #0b0f19; color: #00ff66; padding: 10px;">
+                                <template for:each={deploymentLogs} for:item="log">
+                                    <div key={log.Id} class="slds-p-vertical_xx-small">
+                                        <span style="color: #888888;">[{log.formattedTime}]</span> 
+                                        <span style="color: #ffcc00; font-weight: bold;">[{log.Log_Type__c}]</span> 
+                                        <span> {log.Message__c}</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </lightning-card>
+                    </div>
+                </template>
 
             </template>
-
+ 
         </div>
-
+ 
     </lightning-card>
-
+ 
 </template>
