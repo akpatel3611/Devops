@@ -258,6 +258,12 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
             metadata.add('</met:valueSetDefinition>');
             metadata.add('</met:valueSet>');
+        } else if (fieldType == 'Checkbox') {
+            Boolean defVal = false;
+            if (dfr.getDefaultValue() != null) {
+                defVal = (Boolean)dfr.getDefaultValue();
+            }
+            metadata.add('<met:defaultValue>' + defVal + '</met:defaultValue>');
         }
         
         metadata.add('</met:metadata>');
@@ -286,7 +292,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         String responseBody = res.getBody();
         if (res.getStatusCode() != 200 || responseBody.contains('<success>false</success>')) {
             String errorMsg = parseSoapError(responseBody);
-            if (errorMsg != null && errorMsg.contains('already exists')) {
+            if (errorMsg != null && (errorMsg.contains('already exists') || errorMsg.contains('already a field named') || errorMsg.contains('duplicate'))) {
                 addLog('CustomField ' + objectName + '.' + fieldName + ' already exists in target org.');
             } else {
                 throw new DeploymentExecutionException('Failed to deploy CustomField ' + objectName + '.' + fieldName + ' via Metadata API: ' + errorMsg);
