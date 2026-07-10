@@ -124,15 +124,99 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
 
         addLog('Initiating real-time deployment of selected components...');
 
+        // Pass 1: Deploy Custom Objects first
         for (User_Story_Metadata__c comp : comps) {
-            String apiName = comp.Metadata_API_Name__c;
-            String metaType = comp.Metadata_Type__c;
-
-            if (metaType == 'ApexClass') {
-                deployApexClassInMemory(apiName, targetUrl, targetToken);
-            } else {
-                addLog('Component ' + apiName + ' (' + metaType + ') is not an ApexClass. Skipping or simulating deployment.');
+            if (comp.Metadata_Type__c == 'CustomObject') {
+                deployCustomObject(comp.Metadata_API_Name__c, targetUrl, targetToken);
             }
+        }
+
+        // Pass 2: Deploy Apex Classes
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_Type__c == 'ApexClass') {
+                deployApexClassInMemory(comp.Metadata_API_Name__c, targetUrl, targetToken);
+            }
+        }
+
+        // Pass 3: Deploy other components (Skip or simulate)
+        for (User_Story_Metadata__c comp : comps) {
+            String metaType = comp.Metadata_Type__c;
+            if (metaType != 'CustomObject' && metaType != 'ApexClass') {
+                addLog('Component ' + comp.Metadata_API_Name__c + ' (' + metaType + ') is simulated.');
+            }
+        }
+    }
+
+    private void deployCustomObject(String apiName, String targetUrl, String targetToken) {
+        List<EntityDefinition> entities = [
+            SELECT QualifiedApiName, Label, PluralLabel 
+            FROM EntityDefinition 
+            WHERE QualifiedApiName = :apiName 
+            LIMIT 1
+        ];
+        
+        String label = apiName.replace('__c', '').replace('_', ' ');
+        String pluralLabel = label + 's';
+        
+        if (!entities.isEmpty()) {
+            if (entities[0].Label != null) {
+                label = entities[0].Label;
+            }
+            if (entities[0].PluralLabel != null) {
+                pluralLabel = entities[0].PluralLabel;
+            }
+        }
+
+        // Query if custom object exists in target org
+        String devName = apiName.replace('__c', '');
+        
+        Http h = new Http();
+        HttpRequest queryReq = new HttpRequest();
+        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+Id+FROM+CustomObject+WHERE+DeveloperName=\'' + devName + '\'');
+        queryReq.setMethod('GET');
+        queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
+        queryReq.setHeader('Content-Type', 'application/json');
+        
+        HttpResponse queryRes = h.send(queryReq);
+        if (queryRes.getStatusCode() != 200) {
+            throw new DeploymentExecutionException('Failed to query custom object status in target org: ' + queryRes.getBody());
+        }
+
+        Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
+        List<Object> records = (List<Object>) responseMap.get('records');
+        
+        // If it does not exist, create it (POST)
+        if (records == null || records.isEmpty()) {
+            addLog('Creating CustomObject ' + apiName + ' in target org...');
+            
+            HttpRequest deployReq = new HttpRequest();
+            deployReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/CustomObject');
+            deployReq.setMethod('POST');
+            deployReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            deployReq.setHeader('Content-Type', 'application/json');
+            
+            Map<String, Object> metadata = new Map<String, Object>();
+            metadata.put('label', label);
+            metadata.put('pluralLabel', pluralLabel);
+            metadata.put('sharingModel', 'ReadWrite');
+            metadata.put('deploymentStatus', 'Deployed');
+            
+            Map<String, Object> payload = new Map<String, Object>();
+            payload.put('FullName', apiName);
+            payload.put('Metadata', metadata);
+            
+            deployReq.setBody(JSON.serialize(payload));
+            
+            HttpResponse deployRes = h.send(deployReq);
+            Integer statusCode = deployRes.getStatusCode();
+            if (statusCode != 200 && statusCode != 201 && statusCode != 204) {
+                String errorMsg = parseErrorMessage(deployRes.getBody());
+                throw new DeploymentExecutionException('Failed to create CustomObject ' + apiName + ': ' + errorMsg);
+            }
+            
+            addLog('CustomObject ' + apiName + ' created successfully.');
+        } else {
+            addLog('CustomObject ' + apiName + ' already exists in target org.');
         }
     }
 
