@@ -196,6 +196,124 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         } else {
             addLog('CustomObject ' + apiName + ' already exists in target org.');
         }
+
+        // Deploy all custom fields for this object
+        addLog('Deploying custom fields for ' + apiName + '...');
+        SObjectType sObjType = Schema.getGlobalDescribe().get(apiName);
+        if (sObjType != null) {
+            Map<String, SObjectField> fieldsMap = sObjType.getDescribe().fields.getMap();
+            for (SObjectField f : fieldsMap.values()) {
+                Schema.DescribeFieldResult dfr = f.getDescribe();
+                if (dfr.isCustom()) {
+                    deployCustomFieldViaSoap(apiName, dfr, targetUrl, targetToken);
+                }
+            }
+        }
+    }
+
+    private void deployCustomFieldViaSoap(String objectName, Schema.DescribeFieldResult dfr, String targetUrl, String targetToken) {
+        String fieldName = dfr.getName();
+        String label = dfr.getLabel();
+        Schema.DisplayType dt = dfr.getType();
+        String fieldType = getMetadataFieldType(dt);
+        
+        List<String> metadata = new List<String>();
+        metadata.add('<met:metadata xsi:type="met:CustomField">');
+        metadata.add('<met:fullName>' + objectName + '.' + fieldName + '</met:fullName>');
+        metadata.add('<met:label>' + label.escapeXml() + '</met:label>');
+        metadata.add('<met:type>' + fieldType + '</met:type>');
+        
+        if (fieldType == 'Text' || fieldType == 'LongTextArea') {
+            Integer len = dfr.getLength();
+            if (len == 0 || len == null) len = 255;
+            metadata.add('<met:length>' + len + '</met:length>');
+            if (fieldType == 'LongTextArea') {
+                metadata.add('<met:visibleLines>3</met:visibleLines>');
+            }
+        } else if (fieldType == 'Number' || fieldType == 'Percent' || fieldType == 'Currency') {
+            Integer precision = dfr.getPrecision();
+            Integer scale = dfr.getScale();
+            if (precision == 0 || precision == null) precision = 18;
+            if (scale == null) scale = 0;
+            metadata.add('<met:precision>' + precision + '</met:precision>');
+            metadata.add('<met:scale>' + scale + '</met:scale>');
+        } else if (fieldType == 'Lookup') {
+            List<Schema.SObjectType> refTo = dfr.getReferenceTo();
+            if (!refTo.isEmpty()) {
+                metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
+                String relName = dfr.getRelationshipName();
+                if (String.isNotBlank(relName)) {
+                    metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
+                }
+            }
+        } else if (fieldType == 'Picklist' || fieldType == 'MultiselectPicklist') {
+            metadata.add('<met:valueSet>');
+            metadata.add('<met:valueSetDefinition>');
+            for (Schema.PicklistEntry ple : dfr.getPicklistValues()) {
+                metadata.add('<met:value>');
+                metadata.add('<met:fullName>' + ple.getValue().escapeXml() + '</met:fullName>');
+                metadata.add('<met:label>' + ple.getLabel().escapeXml() + '</met:label>');
+                metadata.add('<met:default>' + ple.isDefaultValue() + '</met:default>');
+                metadata.add('</met:value>');
+            }
+            metadata.add('</met:valueSetDefinition>');
+            metadata.add('</met:valueSet>');
+        }
+        
+        metadata.add('</met:metadata>');
+
+        String soap = '';
+        soap += '<?xml version="1.0" encoding="utf-8"?>';
+        soap += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">';
+        soap += '<soapenv:Header>';
+        soap += '<met:SessionHeader><met:sessionId>' + targetToken + '</met:sessionId></met:SessionHeader>';
+        soap += '</soapenv:Header>';
+        soap += '<soapenv:Body>';
+        soap += '<met:createMetadata>';
+        soap += String.join(metadata, '');
+        soap += '</met:createMetadata>';
+        soap += '</soapenv:Body>';
+        soap += '</soapenv:Envelope>';
+
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(targetUrl + '/services/Soap/m/60.0');
+        req.setMethod('POST');
+        req.setHeader('Content-Type', 'text/xml; charset=UTF-8');
+        req.setHeader('SOAPAction', 'createMetadata');
+        req.setBody(soap);
+
+        HttpResponse res = new Http().send(req);
+        String responseBody = res.getBody();
+        if (res.getStatusCode() != 200 || responseBody.contains('<success>false</success>')) {
+            String errorMsg = parseSoapError(responseBody);
+            if (errorMsg != null && errorMsg.contains('already exists')) {
+                addLog('CustomField ' + objectName + '.' + fieldName + ' already exists in target org.');
+            } else {
+                throw new DeploymentExecutionException('Failed to deploy CustomField ' + objectName + '.' + fieldName + ' via Metadata API: ' + errorMsg);
+            }
+        } else {
+            addLog('CustomField ' + objectName + '.' + fieldName + ' deployed successfully.');
+        }
+    }
+
+    private static String getMetadataFieldType(Schema.DisplayType dt) {
+        switch on dt {
+            when BOOLEAN { return 'Checkbox'; }
+            when CURRENCY { return 'Currency'; }
+            when DATE { return 'Date'; }
+            when DATETIME { return 'DateTime'; }
+            when DOUBLE { return 'Number'; }
+            when EMAIL { return 'Email'; }
+            when INTEGER { return 'Number'; }
+            when PERCENT { return 'Percent'; }
+            when PHONE { return 'Phone'; }
+            when PICKLIST { return 'Picklist'; }
+            when MULTIPICKLIST { return 'MultiselectPicklist'; }
+            when TEXTAREA { return 'LongTextArea'; }
+            when URL { return 'Url'; }
+            when REFERENCE { return 'Lookup'; }
+            when else { return 'Text'; }
+        }
     }
 
     private void deployCustomObjectViaSoap(String apiName, String label, String pluralLabel, String targetUrl, String targetToken) {
