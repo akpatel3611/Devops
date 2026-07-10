@@ -183,7 +183,16 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             List<String> corePipelineNames = new List<String>{
                 'Pipeline__c',
                 'Deployment_Environment__c',
-                'Git_Repository__c'
+                'Git_Repository__c',
+                'Deployment_Request__c',
+                'Deployment_Component__c',
+                'Deployment_Log__c',
+                'Git_Snapshot__c',
+                'User_Story__c',
+                'User_Story_Metadata__c',
+                'Credentials__c',
+                'Release__c',
+                'Project__c'
             };
             for (String name : corePipelineNames) {
                 if (!existingNames.contains(name)) {
