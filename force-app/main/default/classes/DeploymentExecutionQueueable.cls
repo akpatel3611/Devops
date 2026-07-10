@@ -418,7 +418,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         } else if (fieldType == 'Lookup') {
             List<Schema.SObjectType> refTo = dfr.getReferenceTo();
             if (!refTo.isEmpty()) {
-                metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
+                String parentName = refTo[0].getDescribe().getName();
+                metadata.add('<met:referenceTo>' + parentName + '</met:referenceTo>');
                 String relName = null;
                 for (Schema.ChildRelationship cr : refTo[0].getDescribe().getChildRelationships()) {
                     if (cr.getField() == dfr.getSObjectField()) {
@@ -429,6 +430,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 if (String.isNotBlank(relName)) {
                     if (relName.endsWith('__r')) {
                         relName = relName.removeEnd('__r');
+                    }
+                    String parentDev = parentName.replace('__c', '').replace('__e', '');
+                    if (relName.toLowerCase() == parentDev.toLowerCase()) {
+                        String childDev = objectName.replace('__c', '').replace('__e', '');
+                        relName = childDev + '_' + relName;
                     }
                     metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
                 }
