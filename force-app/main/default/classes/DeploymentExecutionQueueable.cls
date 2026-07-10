@@ -310,6 +310,50 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
     }
 
     private void deployCustomObjectFields(String apiName, String targetUrl, String targetToken) {
+        String devName = apiName.replace('__c', '').replace('__e', '');
+        
+        Http h = new Http();
+        HttpRequest queryReq = new HttpRequest();
+        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+Id+FROM+CustomObject+WHERE+DeveloperName=\'' + devName + '\'');
+        queryReq.setMethod('GET');
+        queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
+        queryReq.setHeader('Content-Type', 'application/json');
+        
+        HttpResponse queryRes = h.send(queryReq);
+        if (queryRes.getStatusCode() != 200) {
+            throw new DeploymentExecutionException('Failed to query custom object ID in target org: ' + queryRes.getBody());
+        }
+
+        Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
+        List<Object> records = (List<Object>) responseMap.get('records');
+        
+        Set<String> existingFields = new Set<String>();
+        if (records != null && !records.isEmpty()) {
+            Map<String, Object> objRecord = (Map<String, Object>) records[0];
+            String objId = (String) objRecord.get('Id');
+            
+            HttpRequest fieldReq = new HttpRequest();
+            fieldReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=SELECT+DeveloperName+FROM+CustomField+WHERE+TableEnumOrId=\'' + objId + '\'');
+            fieldReq.setMethod('GET');
+            fieldReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            fieldReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse fieldRes = h.send(fieldReq);
+            if (fieldRes.getStatusCode() == 200) {
+                Map<String, Object> fieldResp = (Map<String, Object>) JSON.deserializeUntyped(fieldRes.getBody());
+                List<Object> fieldRecords = (List<Object>) fieldResp.get('records');
+                if (fieldRecords != null) {
+                    for (Object fRec : fieldRecords) {
+                        Map<String, Object> fMap = (Map<String, Object>) fRec;
+                        String devFieldName = (String) fMap.get('DeveloperName');
+                        if (String.isNotBlank(devFieldName)) {
+                            existingFields.add((devFieldName + '__c').toLowerCase());
+                        }
+                    }
+                }
+            }
+        }
+
         // Deploy all custom fields for this object
         addLog('Deploying custom fields for ' + apiName + '...');
         SObjectType sObjType = Schema.getGlobalDescribe().get(apiName);
@@ -318,7 +362,12 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             for (SObjectField f : fieldsMap.values()) {
                 Schema.DescribeFieldResult dfr = f.getDescribe();
                 if (dfr.isCustom()) {
-                    deployCustomFieldViaSoap(apiName, dfr, targetUrl, targetToken);
+                    String fieldNameLower = dfr.getName().toLowerCase();
+                    if (!existingFields.contains(fieldNameLower)) {
+                        deployCustomFieldViaSoap(apiName, dfr, targetUrl, targetToken);
+                    } else {
+                        addLog('CustomField ' + apiName + '.' + dfr.getName() + ' already exists in target org.');
+                    }
                 }
             }
         }
