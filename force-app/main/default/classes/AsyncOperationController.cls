@@ -5,6 +5,7 @@ public with sharing class AsyncOperationController {
         System.debug('Fetching recent operations for recordId: ' + recordId);
         System.debug('Testing deployment flow');
         system.debug('Testing deployment flow 2');
+        SYSTEM.debug('Testing deployment flow 3');
         return [
             SELECT
                 Id,
