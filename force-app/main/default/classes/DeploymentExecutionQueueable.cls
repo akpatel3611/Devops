@@ -8,6 +8,10 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
 
     private Id requestId;
     private String actionType; // 'Validate' or 'Deploy'
+    private Id resolvedCredentialId;
+    
+    // In-memory collections to avoid DML-before-callout errors
+    private List<String> infoLogs = new List<String>();
 
     /**
      * Constructor accepting only immutable record ID and action type.
@@ -26,29 +30,34 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         }
 
         try {
-            initialize();
-            loadDeploymentContext();
-            prepareExecution();
-            executeDeployment();
-            completeExecution();
+            // Step 1: In-memory logs initialization
+            addLog('Asynchronous execution started.');
+
+            // Step 2: Load deployment context (Queries target credential - NO DML)
+            loadDeploymentContextInMemory();
+
+            // Step 3: Prepare execution payload (NO DML)
+            prepareExecutionInMemory();
+
+            // Step 4: Execute deployments via Tooling API callout (NO DML)
+            executeDeploymentInMemory();
+
+            // Step 5: Save everything at the very end in a single transaction (Callouts are done!)
+            completeExecutionFinal();
         } catch (Exception ex) {
-            handleFailure(ex);
+            handleFailureFinal(ex);
         }
     }
 
-    /**
-     * Step 1: Transitions request status to Preparing and logs start.
-     */
-    private void initialize() {
-        DeploymentExecutionHelper.applyRuntimeState(requestId, 'Preparing', null, null, null);
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Asynchronous execution started.');
+    private void addLog(String msg) {
+        infoLogs.add(msg);
     }
 
     /**
      * Step 2: Queries fresh Deployment Request context and resolves target environment credentials.
      */
-    private void loadDeploymentContext() {
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Resolving target environment credentials...');
+    private void loadDeploymentContextInMemory() {
+        addLog('Resolving target environment credentials...');
         
         Deployment_Request__c req = [
             SELECT Id, Target_Environment__c, Credential__c 
@@ -66,46 +75,38 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             throw new DeploymentExecutionException('No active credential configuration found for target environment.');
         }
 
-        // Link credential to request if not already populated (no local DML, uses helper)
         if (req.Credential__c == null) {
-            DeploymentExecutionHelper.applyRuntimeState(requestId, null, null, null, (Id)wrap.credentialId);
+            this.resolvedCredentialId = (Id)wrap.credentialId;
+        } else {
+            this.resolvedCredentialId = req.Credential__c;
         }
 
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Credential verified successfully.');
+        addLog('Credential verified successfully.');
     }
 
     /**
      * Step 3: Simulates loading deployment execution context and preparing packaging payload.
      */
-    private void prepareExecution() {
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Loads deployment execution context.');
-        simulateDelay();
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Preparing deployment package payload.');
-        simulateDelay();
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Uploading deployment package.');
+    private void prepareExecutionInMemory() {
+        addLog('Loads deployment execution context.');
+        addLog('Preparing deployment package payload.');
+        addLog('Uploading deployment package.');
     }
 
     /**
      * Step 4: Transitions request status to executing status (Validating / Deploying).
      */
-    private void executeDeployment() {
-        String runningStatus = (actionType == 'Validate') ? 'Validating' : 'Deploying';
-        DeploymentExecutionHelper.applyRuntimeState(requestId, runningStatus, null, null, null);
-        
+    private void executeDeploymentInMemory() {
         Deployment_Request__c req = [
-            SELECT Id, User_Story__c, Credential__c 
+            SELECT Id, User_Story__c 
             FROM Deployment_Request__c 
             WHERE Id = :requestId 
             LIMIT 1
         ];
 
-        if (req.Credential__c == null) {
-            throw new DeploymentExecutionException('No credential linked to the Deployment Request.');
-        }
-
         // Generate target access token and endpoint
         MetadataAuthenticationService.OAuthTokenResponse tokenResponse = 
-            MetadataAuthenticationService.generateAccessToken(req.Credential__c);
+            MetadataAuthenticationService.generateAccessToken(this.resolvedCredentialId);
         String targetToken = tokenResponse.accessToken;
         String targetUrl = tokenResponse.instanceUrl;
 
@@ -117,26 +118,25 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         ];
 
         if (comps.isEmpty()) {
-            DeploymentExecutionHelper.createInfoLog(requestId, 'No selected metadata components found for this user story. Deployment is empty.');
+            addLog('No selected metadata components found for this user story. Deployment is empty.');
             return;
         }
 
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Initiating real-time deployment of selected components...');
+        addLog('Initiating real-time deployment of selected components...');
 
         for (User_Story_Metadata__c comp : comps) {
             String apiName = comp.Metadata_API_Name__c;
             String metaType = comp.Metadata_Type__c;
 
             if (metaType == 'ApexClass') {
-                deployApexClass(apiName, targetUrl, targetToken);
+                deployApexClassInMemory(apiName, targetUrl, targetToken);
             } else {
-                DeploymentExecutionHelper.createInfoLog(requestId, 'Component ' + apiName + ' (' + metaType + ') is not an ApexClass. Skipping or simulating deployment.');
-                simulateDelay();
+                addLog('Component ' + apiName + ' (' + metaType + ') is not an ApexClass. Skipping or simulating deployment.');
             }
         }
     }
 
-    private void deployApexClass(String apiName, String targetUrl, String targetToken) {
+    private void deployApexClassInMemory(String apiName, String targetUrl, String targetToken) {
         List<ApexClass> localClasses = [SELECT Name, Body FROM ApexClass WHERE Name = :apiName LIMIT 1];
         if (localClasses.isEmpty()) {
             throw new DeploymentExecutionException('ApexClass ' + apiName + ' not found in the source org.');
@@ -174,7 +174,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             payload.put('Body', classBody);
             deployReq.setBody(JSON.serialize(payload));
             
-            DeploymentExecutionHelper.createInfoLog(requestId, 'Updating ApexClass ' + apiName + ' in target org...');
+            addLog('Updating ApexClass ' + apiName + ' in target org...');
         } else {
             // Create new class (POST)
             deployReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass');
@@ -185,7 +185,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             payload.put('Body', classBody);
             deployReq.setBody(JSON.serialize(payload));
             
-            DeploymentExecutionHelper.createInfoLog(requestId, 'Creating ApexClass ' + apiName + ' in target org...');
+            addLog('Creating ApexClass ' + apiName + ' in target org...');
         }
 
         HttpResponse deployRes = h.send(deployReq);
@@ -195,7 +195,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             throw new DeploymentExecutionException('Compilation/Deployment failed for ApexClass ' + apiName + ': ' + errorMsg);
         }
         
-        DeploymentExecutionHelper.createInfoLog(requestId, 'ApexClass ' + apiName + ' deployed successfully.');
+        addLog('ApexClass ' + apiName + ' deployed successfully.');
     }
 
     private String parseErrorMessage(String body) {
@@ -212,19 +212,65 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
     /**
      * Step 5: Transitions status to final success state (Validated / Completed) and sets timestamp.
      */
-    private void completeExecution() {
+    private void completeExecutionFinal() {
         String finalStatus = (actionType == 'Validate') ? 'Validated' : 'Completed';
-        DeploymentExecutionHelper.applyRuntimeState(requestId, finalStatus, null, System.now(), null);
-        DeploymentExecutionHelper.createInfoLog(requestId, 'Deployment request completed successfully.');
+        
+        // 1. Update request status and credential in database
+        DeploymentExecutionHelper.applyRuntimeState(requestId, finalStatus, null, System.now(), this.resolvedCredentialId);
+        
+        // 2. Bulk insert all collected logs
+        List<Deployment_Log__c> logsToInsert = new List<Deployment_Log__c>();
+        for (String msg : infoLogs) {
+            Deployment_Log__c log = new Deployment_Log__c();
+            log.Deployment_Request__c = requestId;
+            log.Log_Type__c = 'Info';
+            log.Message__c = msg;
+            log.Timestamp__c = System.now();
+            logsToInsert.add(log);
+        }
+        
+        Deployment_Log__c successLog = new Deployment_Log__c();
+        successLog.Deployment_Request__c = requestId;
+        successLog.Log_Type__c = 'Info';
+        successLog.Message__c = 'Deployment request completed successfully.';
+        successLog.Timestamp__c = System.now();
+        logsToInsert.add(successLog);
+
+        if (!logsToInsert.isEmpty()) {
+            insert logsToInsert;
+        }
     }
 
     /**
      * Exception Handler: Logs errors and transitions status to Failed.
      */
-    private void handleFailure(Exception ex) {
+    private void handleFailureFinal(Exception ex) {
         System.debug(LoggingLevel.ERROR, 'DeploymentExecutionQueueable execution failed: ' + ex.getMessage());
-        DeploymentExecutionHelper.createErrorLog(requestId, 'Execution failed: ' + ex.getMessage());
-        DeploymentExecutionHelper.applyRuntimeState(requestId, 'Failed', null, System.now(), null);
+        
+        // 1. Update status to Failed in database
+        DeploymentExecutionHelper.applyRuntimeState(requestId, 'Failed', null, System.now(), this.resolvedCredentialId);
+        
+        // 2. Bulk insert all collected logs + failure error log
+        List<Deployment_Log__c> logsToInsert = new List<Deployment_Log__c>();
+        for (String msg : infoLogs) {
+            Deployment_Log__c log = new Deployment_Log__c();
+            log.Deployment_Request__c = requestId;
+            log.Log_Type__c = 'Info';
+            log.Message__c = msg;
+            log.Timestamp__c = System.now();
+            logsToInsert.add(log);
+        }
+        
+        Deployment_Log__c errorLog = new Deployment_Log__c();
+        errorLog.Deployment_Request__c = requestId;
+        errorLog.Log_Type__c = 'Error';
+        errorLog.Message__c = 'Execution failed: ' + ex.getMessage();
+        errorLog.Timestamp__c = System.now();
+        logsToInsert.add(errorLog);
+
+        if (!logsToInsert.isEmpty()) {
+            insert logsToInsert;
+        }
     }
 
     /**
