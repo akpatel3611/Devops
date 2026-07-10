@@ -167,6 +167,28 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
         }
 
+        // Auto-inject missing pipeline framework dependencies if deploying any pipeline component
+        Boolean hasPipeline = false;
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_API_Name__c != null && comp.Metadata_API_Name__c.startsWith('Pipeline')) {
+                hasPipeline = true;
+                break;
+            }
+        }
+        if (hasPipeline) {
+            Set<String> existingNames = new Set<String>();
+            for (User_Story_Metadata__c comp : comps) {
+                existingNames.add(comp.Metadata_API_Name__c);
+            }
+            if (!existingNames.contains('Pipeline__c')) {
+                User_Story_Metadata__c injected = new User_Story_Metadata__c();
+                injected.Metadata_API_Name__c = 'Pipeline__c';
+                injected.Metadata_Type__c = 'CustomObject';
+                injected.Action__c = 'Add';
+                comps.add(injected);
+            }
+        }
+
         addLog('Initiating real-time deployment of selected components...');
 
         // Pass 1: Deploy Custom Objects / Platform Events first
