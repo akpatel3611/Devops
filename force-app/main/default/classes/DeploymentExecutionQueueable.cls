@@ -180,24 +180,40 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             for (User_Story_Metadata__c comp : comps) {
                 existingNames.add(comp.Metadata_API_Name__c);
             }
-            if (!existingNames.contains('Pipeline__c')) {
-                User_Story_Metadata__c injected = new User_Story_Metadata__c();
-                injected.Metadata_API_Name__c = 'Pipeline__c';
-                injected.Metadata_Type__c = 'CustomObject';
-                injected.Action__c = 'Add';
-                comps.add(injected);
+            List<String> corePipelineNames = new List<String>{
+                'Pipeline__c',
+                'Deployment_Environment__c',
+                'Git_Repository__c'
+            };
+            for (String name : corePipelineNames) {
+                if (!existingNames.contains(name)) {
+                    User_Story_Metadata__c injected = new User_Story_Metadata__c();
+                    injected.Metadata_API_Name__c = name;
+                    injected.Metadata_Type__c = 'CustomObject';
+                    injected.Action__c = 'Add';
+                    comps.add(injected);
+                }
             }
         }
 
         addLog('Initiating real-time deployment of selected components...');
 
-        // Pass 1: Deploy Custom Objects / Platform Events first
+        // Pass 1a: Deploy Custom Object / Platform Event Base Containers first
         for (User_Story_Metadata__c comp : comps) {
             if (comp.Metadata_Type__c == 'CustomObject') {
                 if (comp.Metadata_API_Name__c != null && (comp.Metadata_API_Name__c.endsWith('__c') || comp.Metadata_API_Name__c.endsWith('__e'))) {
                     deployCustomObject(comp.Metadata_API_Name__c, targetUrl, targetToken);
                 } else {
                     addLog('Component ' + comp.Metadata_API_Name__c + ' is not a valid CustomObject API name. Skipping.');
+                }
+            }
+        }
+
+        // Pass 1b: Deploy Custom Object Fields (when all base containers exist)
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_Type__c == 'CustomObject') {
+                if (comp.Metadata_API_Name__c != null && (comp.Metadata_API_Name__c.endsWith('__c') || comp.Metadata_API_Name__c.endsWith('__e'))) {
+                    deployCustomObjectFields(comp.Metadata_API_Name__c, targetUrl, targetToken);
                 }
             }
         }
@@ -291,6 +307,9 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             addLog('CustomObject ' + apiName + ' already exists in target org.');
         }
 
+    }
+
+    private void deployCustomObjectFields(String apiName, String targetUrl, String targetToken) {
         // Deploy all custom fields for this object
         addLog('Deploying custom fields for ' + apiName + '...');
         SObjectType sObjType = Schema.getGlobalDescribe().get(apiName);
