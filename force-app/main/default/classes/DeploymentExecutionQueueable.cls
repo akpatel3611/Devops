@@ -402,9 +402,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         metadata.add('<met:type>' + fieldType + '</met:type>');
         
         if (fieldType == 'Text' || fieldType == 'LongTextArea') {
-            Integer len = dfr.getLength();
-            if (len == 0 || len == null) len = 255;
-            metadata.add('<met:length>' + len + '</met:length>');
+            if (!dfr.isCalculated()) {
+                Integer len = dfr.getLength();
+                if (len == 0 || len == null) len = 255;
+                metadata.add('<met:length>' + len + '</met:length>');
+            }
             if (fieldType == 'LongTextArea') {
                 metadata.add('<met:visibleLines>3</met:visibleLines>');
             }
@@ -453,6 +455,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 defVal = (Boolean)dfr.getDefaultValue();
             }
             metadata.add('<met:defaultValue>' + defVal + '</met:defaultValue>');
+        }
+        
+        if (dfr.isCalculated() && String.isNotBlank(dfr.getCalculatedFormula())) {
+            metadata.add('<met:formula>' + dfr.getCalculatedFormula().escapeXml() + '</met:formula>');
+            metadata.add('<met:formulaTreatBlanksAs>BlankAsZero</met:formulaTreatBlanksAs>');
         }
         
         metadata.add('</met:metadata>');
