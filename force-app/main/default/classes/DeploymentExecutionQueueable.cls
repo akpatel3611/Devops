@@ -192,7 +192,9 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 'User_Story_Metadata__c',
                 'Credentials__c',
                 'Release__c',
-                'Project__c'
+                'Project__c',
+                'Promotion__c',
+                'Stage__c'
             };
             for (String name : corePipelineNames) {
                 if (!existingNames.contains(name)) {
