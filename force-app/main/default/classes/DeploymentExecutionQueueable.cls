@@ -176,11 +176,36 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
         }
 
-        // Pass 2: Deploy Apex Classes
+        // Pass 2: Deploy Apex Classes (Sort to compile core infrastructure first)
+        List<User_Story_Metadata__c> classComps = new List<User_Story_Metadata__c>();
         for (User_Story_Metadata__c comp : comps) {
             if (comp.Metadata_Type__c == 'ApexClass') {
-                deployApexClassInMemory(comp.Metadata_API_Name__c, targetUrl, targetToken);
+                classComps.add(comp);
             }
+        }
+        
+        List<User_Story_Metadata__c> sortedClassComps = new List<User_Story_Metadata__c>();
+        List<String> corePriority = new List<String>{
+            'AsyncUtil',
+            'AsyncEventPublisher',
+            'AsyncEventManager',
+            'AsyncProcessor'
+        };
+        for (String coreName : corePriority) {
+            for (User_Story_Metadata__c comp : classComps) {
+                if (comp.Metadata_API_Name__c == coreName) {
+                    sortedClassComps.add(comp);
+                }
+            }
+        }
+        for (User_Story_Metadata__c comp : classComps) {
+            if (!corePriority.contains(comp.Metadata_API_Name__c)) {
+                sortedClassComps.add(comp);
+            }
+        }
+        
+        for (User_Story_Metadata__c comp : sortedClassComps) {
+            deployApexClassInMemory(comp.Metadata_API_Name__c, targetUrl, targetToken);
         }
 
         // Pass 3: Deploy other components (Skip or simulate)
