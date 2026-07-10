@@ -356,6 +356,9 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
                 String relName = dfr.getRelationshipName();
                 if (String.isNotBlank(relName)) {
+                    if (relName.endsWith('__r')) {
+                        relName = relName.removeEnd('__r');
+                    }
                     metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
                 }
             }
