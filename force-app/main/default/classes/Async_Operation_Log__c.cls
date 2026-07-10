@@ -1,0 +1,1 @@
+/* Simulated metadata content for Async_Operation_Log__c (ApexClass) */
