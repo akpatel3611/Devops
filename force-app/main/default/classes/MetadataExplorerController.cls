@@ -83,37 +83,28 @@ public with sharing class MetadataExplorerController {
                     Double.valueOf('64')
                 );
 
-            if(
-                describeResult != null &&
-                describeResult.metadataObjects != null
-            ){
-
-                for(
-                    MetadataService.DescribeMetadataObject obj :
-
-                    describeResult.metadataObjects
-                ){
-
-                    if(
-                        String.isNotBlank(
-                            obj.xmlName
-                        )
-                    ){
-
-                        results.add(
-
-                            new MetadataTypeWrapper(
-
-                                obj.xmlName,
-
-                                obj.xmlName
-                            )
-                        );
+            Set<String> typeNames = new Set<String>();
+            if(describeResult != null && describeResult.metadataObjects != null) {
+                for(MetadataService.DescribeMetadataObject obj : describeResult.metadataObjects) {
+                    if(String.isNotBlank(obj.xmlName)) {
+                        typeNames.add(obj.xmlName);
+                    }
+                    if(obj.childXmlNames != null) {
+                        for(String child : obj.childXmlNames) {
+                            if(String.isNotBlank(child)) {
+                                typeNames.add(child);
+                            }
+                        }
                     }
                 }
             }
-
-            // results.sort(new MetadataTypeSorter());
+            
+            List<String> sortedTypes = new List<String>(typeNames);
+            sortedTypes.sort();
+            
+            for(String typeName : sortedTypes) {
+                results.add(new MetadataTypeWrapper(typeName, typeName));
+            }
 
             return results;
 
