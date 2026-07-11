@@ -1,12 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Test_Verification__c</fullName>
-    <description>A test field to verify deployment flow.</description>
-    <externalId>false</externalId>
-    <label>Test Verification</label>
-    <length>255</length>
-    <required>false</required>
-    <trackTrending>false</trackTrending>
-    <type>Text</type>
-    <unique>false</unique>
-</CustomField>
+/* Simulated metadata content for Async_Operation_Log__c.Test_Verification__c (CustomField) */
