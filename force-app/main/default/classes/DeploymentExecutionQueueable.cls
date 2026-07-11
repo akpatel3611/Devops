@@ -13,6 +13,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
     // In-memory collections to avoid DML-before-callout errors
     private List<String> infoLogs = new List<String>();
 
+    // Target org state caches to minimize callouts
+    private Map<String, String> targetCustomObjectIds = new Map<String, String>();
+    private Map<String, Set<String>> targetCustomFields = new Map<String, Set<String>>();
+    private Map<String, String> targetApexClassIds = new Map<String, String>();
+
     /**
      * Constructor accepting only immutable record ID and action type.
      */
@@ -206,6 +211,152 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 }
             }
         }
+        // Auto-inject missing pipeline/git class dependencies if deploying any pipeline or git class
+        Boolean hasPipelineClass = false;
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_Type__c == 'ApexClass' && comp.Metadata_API_Name__c != null && 
+                (comp.Metadata_API_Name__c.startsWith('Pipeline') || comp.Metadata_API_Name__c.startsWith('GitHub') || comp.Metadata_API_Name__c.startsWith('Git'))) {
+                hasPipelineClass = true;
+                break;
+            }
+        }
+        if (hasPipelineClass) {
+            Set<String> existingNames = new Set<String>();
+            for (User_Story_Metadata__c comp : comps) {
+                existingNames.add(comp.Metadata_API_Name__c);
+            }
+            List<String> corePipelineClasses = new List<String>{
+                'GitHubRecordService',
+                'GitHubPullRequestFilesService',
+                'GitHubIntegrationService',
+                'GitRepositoryService',
+                'MetadataScannerService',
+                'PipelineRuntimeService',
+                'PipelineMetadataProcessor',
+                'PipelineConfigurationService',
+                'PipelineRuntimeUpdaterService',
+                'UserStoryMetadataService'
+            };
+            for (String name : corePipelineClasses) {
+                if (!existingNames.contains(name)) {
+                    User_Story_Metadata__c injected = new User_Story_Metadata__c();
+                    injected.Metadata_API_Name__c = name;
+                    injected.Metadata_Type__c = 'ApexClass';
+                    injected.Action__c = 'Add';
+                    comps.add(injected);
+                }
+            }
+        }
+
+        // Pre-query target CustomObjects, CustomFields, and ApexClasses in bulk to save callout limits
+        // 1. Bulk query CustomObjects in target org
+        Set<String> customObjectNames = new Set<String>();
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_Type__c == 'CustomObject' && comp.Metadata_API_Name__c != null) {
+                customObjectNames.add(comp.Metadata_API_Name__c.replace('__c', '').replace('__e', ''));
+            }
+        }
+        if (!customObjectNames.isEmpty()) {
+            List<String> namesList = new List<String>(customObjectNames);
+            List<String> formattedNames = new List<String>();
+            for (String name : namesList) {
+                formattedNames.add('\'' + name + '\'');
+            }
+            String objSoql = 'SELECT Id, DeveloperName FROM CustomObject WHERE DeveloperName IN (' + String.join(formattedNames, ', ') + ')';
+            
+            Http h = new Http();
+            HttpRequest queryReq = new HttpRequest();
+            queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(objSoql, 'UTF-8'));
+            queryReq.setMethod('GET');
+            queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            queryReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse queryRes = h.send(queryReq);
+            if (queryRes.getStatusCode() == 200) {
+                Map<String, Object> respMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
+                List<Object> records = (List<Object>) respMap.get('records');
+                if (records != null) {
+                    for (Object rec : records) {
+                        Map<String, Object> rMap = (Map<String, Object>) rec;
+                        String devName = (String) rMap.get('DeveloperName');
+                        String objId = (String) rMap.get('Id');
+                        targetCustomObjectIds.put(devName.toLowerCase(), objId);
+                    }
+                }
+            }
+        }
+
+        // 2. Bulk query CustomFields in target org
+        if (!targetCustomObjectIds.isEmpty()) {
+            List<String> idsList = new List<String>();
+            for (String objId : targetCustomObjectIds.values()) {
+                idsList.add('\'' + objId + '\'');
+            }
+            String fieldSoql = 'SELECT DeveloperName, TableEnumOrId FROM CustomField WHERE TableEnumOrId IN (' + String.join(idsList, ', ') + ')';
+            
+            Http h = new Http();
+            HttpRequest queryReq = new HttpRequest();
+            queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(fieldSoql, 'UTF-8'));
+            queryReq.setMethod('GET');
+            queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            queryReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse queryRes = h.send(queryReq);
+            if (queryRes.getStatusCode() == 200) {
+                Map<String, Object> respMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
+                List<Object> records = (List<Object>) respMap.get('records');
+                if (records != null) {
+                    for (Object rec : records) {
+                        Map<String, Object> rMap = (Map<String, Object>) rec;
+                        String devFieldName = (String) rMap.get('DeveloperName');
+                        String tableId = (String) rMap.get('TableEnumOrId');
+                        if (String.isNotBlank(devFieldName)) {
+                            if (!targetCustomFields.containsKey(tableId)) {
+                                targetCustomFields.put(tableId, new Set<String>());
+                            }
+                            targetCustomFields.get(tableId).add((devFieldName + '__c').toLowerCase());
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Bulk query ApexClasses in target org
+        Set<String> classNames = new Set<String>();
+        for (User_Story_Metadata__c comp : comps) {
+            if (comp.Metadata_Type__c == 'ApexClass' && comp.Metadata_API_Name__c != null) {
+                classNames.add(comp.Metadata_API_Name__c);
+            }
+        }
+        if (!classNames.isEmpty()) {
+            List<String> namesList = new List<String>(classNames);
+            List<String> formattedNames = new List<String>();
+            for (String name : namesList) {
+                formattedNames.add('\'' + name + '\'');
+            }
+            String classSoql = 'SELECT Id, Name FROM ApexClass WHERE Name IN (' + String.join(formattedNames, ', ') + ')';
+            
+            Http h = new Http();
+            HttpRequest queryReq = new HttpRequest();
+            queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(classSoql, 'UTF-8'));
+            queryReq.setMethod('GET');
+            queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            queryReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse queryRes = h.send(queryReq);
+            if (queryRes.getStatusCode() == 200) {
+                Map<String, Object> respMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
+                List<Object> records = (List<Object>) respMap.get('records');
+                if (records != null) {
+                    for (Object rec : records) {
+                        Map<String, Object> rMap = (Map<String, Object>) rec;
+                        String className = (String) rMap.get('Name');
+                        String classId = (String) rMap.get('Id');
+                        targetApexClassIds.put(className.toLowerCase(), classId);
+                    }
+                }
+            }
+        }
 
         addLog('Initiating real-time deployment of selected components...');
 
@@ -244,7 +395,16 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             'AsyncEventManager',
             'AsyncProcessor',
             'AsyncProcessService',
-            'AsyncProcessQueueable'
+            'AsyncProcessQueueable',
+            'DynamicRecordService',
+            'GitHubIntegrationService',
+            'GitHubRecordService',
+            'GitHubPullRequestFilesService',
+            'GitRepositoryService',
+            'MetadataScannerService',
+            'PipelineConfigurationService',
+            'PipelineMetadataProcessor',
+            'UserStoryMetadataService'
         };
         for (String coreName : corePriority) {
             for (User_Story_Metadata__c comp : classComps) {
@@ -259,9 +419,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
         }
         
-        for (User_Story_Metadata__c comp : sortedClassComps) {
-            deployApexClassInMemory(comp.Metadata_API_Name__c, targetUrl, targetToken);
-        }
+        deployApexClassesBulk(sortedClassComps, targetUrl, targetToken);
 
         // Pass 3: Deploy other components (Skip or simulate)
         for (User_Story_Metadata__c comp : comps) {
@@ -292,78 +450,69 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
         }
 
-        // Query if custom object / Platform Event exists in target org
+        // Query if custom object / Platform Event exists in target org (using cache)
         String devName = apiName.replace('__c', '').replace('__e', '');
-        
-        Http h = new Http();
-        HttpRequest queryReq = new HttpRequest();
-        String objSoql = 'SELECT Id FROM CustomObject WHERE DeveloperName = \'' + devName + '\'';
-        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(objSoql, 'UTF-8'));
-        queryReq.setMethod('GET');
-        queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
-        queryReq.setHeader('Content-Type', 'application/json');
-        
-        HttpResponse queryRes = h.send(queryReq);
-        if (queryRes.getStatusCode() != 200) {
-            throw new DeploymentExecutionException('Failed to query custom object status in target org: ' + queryRes.getBody());
-        }
-
-        Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
-        List<Object> records = (List<Object>) responseMap.get('records');
+        Boolean exists = targetCustomObjectIds.containsKey(devName.toLowerCase());
         
         // If it does not exist, create it (POST SOAP XML to Metadata API)
-        if (records == null || records.isEmpty()) {
+        if (!exists) {
             addLog('Creating CustomObject ' + apiName + ' in target org via SOAP Metadata API...');
             deployCustomObjectViaSoap(apiName, label, pluralLabel, targetUrl, targetToken);
         } else {
             addLog('CustomObject ' + apiName + ' already exists in target org.');
         }
-
     }
 
     private void deployCustomObjectFields(String apiName, String targetUrl, String targetToken) {
         String devName = apiName.replace('__c', '').replace('__e', '');
+        String objId = targetCustomObjectIds.get(devName.toLowerCase());
         
-        Http h = new Http();
-        HttpRequest queryReq = new HttpRequest();
-        String objSoql = 'SELECT Id FROM CustomObject WHERE DeveloperName = \'' + devName + '\'';
-        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(objSoql, 'UTF-8'));
-        queryReq.setMethod('GET');
-        queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
-        queryReq.setHeader('Content-Type', 'application/json');
-        
-        HttpResponse queryRes = h.send(queryReq);
-        if (queryRes.getStatusCode() != 200) {
-            throw new DeploymentExecutionException('Failed to query custom object ID in target org: ' + queryRes.getBody());
-        }
-
-        Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
-        List<Object> records = (List<Object>) responseMap.get('records');
-        
-        Set<String> existingFields = new Set<String>();
-        if (records != null && !records.isEmpty()) {
-            Map<String, Object> objRecord = (Map<String, Object>) records[0];
-            String objId = (String) objRecord.get('Id');
+        // Fallback query if not in cache (e.g. if newly created CustomObject)
+        if (objId == null) {
+            Http h = new Http();
+            HttpRequest queryReq = new HttpRequest();
+            String objSoql = 'SELECT Id FROM CustomObject WHERE DeveloperName = \'' + devName + '\'';
+            queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(objSoql, 'UTF-8'));
+            queryReq.setMethod('GET');
+            queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            queryReq.setHeader('Content-Type', 'application/json');
             
-            HttpRequest fieldReq = new HttpRequest();
-            String fieldSoql = 'SELECT DeveloperName FROM CustomField WHERE TableEnumOrId = \'' + objId + '\'';
-            fieldReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(fieldSoql, 'UTF-8'));
-            fieldReq.setMethod('GET');
-            fieldReq.setHeader('Authorization', 'Bearer ' + targetToken);
-            fieldReq.setHeader('Content-Type', 'application/json');
-            
-            HttpResponse fieldRes = h.send(fieldReq);
-            if (fieldRes.getStatusCode() != 200) {
-                throw new DeploymentExecutionException('Failed to query custom fields in target org: ' + fieldRes.getBody());
+            HttpResponse queryRes = h.send(queryReq);
+            if (queryRes.getStatusCode() == 200) {
+                Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
+                List<Object> records = (List<Object>) responseMap.get('records');
+                if (records != null && !records.isEmpty()) {
+                    Map<String, Object> objRecord = (Map<String, Object>) records[0];
+                    objId = (String) objRecord.get('Id');
+                    targetCustomObjectIds.put(devName.toLowerCase(), objId);
+                }
             }
-            Map<String, Object> fieldResp = (Map<String, Object>) JSON.deserializeUntyped(fieldRes.getBody());
-            List<Object> fieldRecords = (List<Object>) fieldResp.get('records');
-            if (fieldRecords != null) {
-                for (Object fRec : fieldRecords) {
-                    Map<String, Object> fMap = (Map<String, Object>) fRec;
-                    String devFieldName = (String) fMap.get('DeveloperName');
-                    if (String.isNotBlank(devFieldName)) {
-                        existingFields.add((devFieldName + '__c').toLowerCase());
+        }
+        
+        Set<String> existingFields = (objId != null) ? targetCustomFields.get(objId) : null;
+        if (existingFields == null) {
+            existingFields = new Set<String>();
+            // Fallback query for custom fields if not in cache
+            if (objId != null) {
+                HttpRequest fieldReq = new HttpRequest();
+                String fieldSoql = 'SELECT DeveloperName FROM CustomField WHERE TableEnumOrId = \'' + objId + '\'';
+                fieldReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(fieldSoql, 'UTF-8'));
+                fieldReq.setMethod('GET');
+                fieldReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                fieldReq.setHeader('Content-Type', 'application/json');
+                
+                HttpResponse fieldRes = new Http().send(fieldReq);
+                if (fieldRes.getStatusCode() == 200) {
+                    Map<String, Object> fieldResp = (Map<String, Object>) JSON.deserializeUntyped(fieldRes.getBody());
+                    List<Object> fieldRecords = (List<Object>) fieldResp.get('records');
+                    if (fieldRecords != null) {
+                        for (Object fRec : fieldRecords) {
+                            Map<String, Object> fMap = (Map<String, Object>) fRec;
+                            String devFieldName = (String) fMap.get('DeveloperName');
+                            if (String.isNotBlank(devFieldName)) {
+                                existingFields.add((devFieldName + '__c').toLowerCase());
+                            }
+                        }
                     }
                 }
             }
@@ -375,94 +524,112 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         SObjectType sObjType = Schema.getGlobalDescribe().get(apiName);
         if (sObjType != null) {
             Map<String, SObjectField> fieldsMap = sObjType.getDescribe().fields.getMap();
+            List<Schema.DescribeFieldResult> fieldsToDeploy = new List<Schema.DescribeFieldResult>();
             for (SObjectField f : fieldsMap.values()) {
                 Schema.DescribeFieldResult dfr = f.getDescribe();
                 if (dfr.isCustom()) {
                     String fieldNameLower = dfr.getName().toLowerCase();
                     if (!existingFields.contains(fieldNameLower)) {
-                        deployCustomFieldViaSoap(apiName, dfr, targetUrl, targetToken);
+                        fieldsToDeploy.add(dfr);
                     } else {
                         addLog('CustomField ' + apiName + '.' + dfr.getName() + ' already exists in target org.');
                     }
                 }
             }
+
+            // Batch fields in lists of 10 to reduce callout count dramatically
+            List<Schema.DescribeFieldResult> batch = new List<Schema.DescribeFieldResult>();
+            for (Schema.DescribeFieldResult dfr : fieldsToDeploy) {
+                batch.add(dfr);
+                if (batch.size() == 10) {
+                    deployCustomFieldsViaSoap(apiName, batch, targetUrl, targetToken);
+                    batch.clear();
+                }
+            }
+            if (!batch.isEmpty()) {
+                deployCustomFieldsViaSoap(apiName, batch, targetUrl, targetToken);
+            }
         }
     }
 
-    private void deployCustomFieldViaSoap(String objectName, Schema.DescribeFieldResult dfr, String targetUrl, String targetToken) {
-        String fieldName = dfr.getName();
-        String label = dfr.getLabel();
-        Schema.DisplayType dt = dfr.getType();
-        String fieldType = getMetadataFieldType(dt);
-        
+    private void deployCustomFieldsViaSoap(String objectName, List<Schema.DescribeFieldResult> fieldsList, String targetUrl, String targetToken) {
+        if (fieldsList == null || fieldsList.isEmpty()) {
+            return;
+        }
+
         List<String> metadata = new List<String>();
-        metadata.add('<met:metadata xsi:type="met:CustomField">');
-        metadata.add('<met:fullName>' + objectName + '.' + fieldName + '</met:fullName>');
-        metadata.add('<met:label>' + label.escapeXml() + '</met:label>');
-        metadata.add('<met:type>' + fieldType + '</met:type>');
-        
-        if (fieldType == 'Text' || fieldType == 'LongTextArea') {
-            if (!dfr.isCalculated()) {
-                Integer len = dfr.getLength();
-                if (len == 0 || len == null) len = 255;
-                metadata.add('<met:length>' + len + '</met:length>');
-            }
-            if (fieldType == 'LongTextArea') {
-                metadata.add('<met:visibleLines>3</met:visibleLines>');
-            }
-        } else if (fieldType == 'Number' || fieldType == 'Percent' || fieldType == 'Currency') {
-            Integer precision = dfr.getPrecision();
-            Integer scale = dfr.getScale();
-            if (precision == 0 || precision == null) precision = 18;
-            if (scale == null) scale = 0;
-            metadata.add('<met:precision>' + precision + '</met:precision>');
-            metadata.add('<met:scale>' + scale + '</met:scale>');
-        } else if (fieldType == 'Lookup') {
-            List<Schema.SObjectType> refTo = dfr.getReferenceTo();
-            if (!refTo.isEmpty()) {
-                metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
-                String relName = null;
-                for (Schema.ChildRelationship cr : refTo[0].getDescribe().getChildRelationships()) {
-                    if (cr.getField() == dfr.getSObjectField()) {
-                        relName = cr.getRelationshipName();
-                        break;
+        for (Schema.DescribeFieldResult dfr : fieldsList) {
+            String fieldName = dfr.getName();
+            String label = dfr.getLabel();
+            Schema.DisplayType dt = dfr.getType();
+            String fieldType = getMetadataFieldType(dt);
+            
+            metadata.add('<met:metadata xsi:type="met:CustomField">');
+            metadata.add('<met:fullName>' + objectName + '.' + fieldName + '</met:fullName>');
+            metadata.add('<met:label>' + label.escapeXml() + '</met:label>');
+            metadata.add('<met:type>' + fieldType + '</met:type>');
+            
+            if (fieldType == 'Text' || fieldType == 'LongTextArea') {
+                if (!dfr.isCalculated()) {
+                    Integer len = dfr.getLength();
+                    if (len == 0 || len == null) len = 255;
+                    metadata.add('<met:length>' + len + '</met:length>');
+                }
+                if (fieldType == 'LongTextArea') {
+                    metadata.add('<met:visibleLines>3</met:visibleLines>');
+                }
+            } else if (fieldType == 'Number' || fieldType == 'Percent' || fieldType == 'Currency') {
+                Integer precision = dfr.getPrecision();
+                Integer scale = dfr.getScale();
+                if (precision == 0 || precision == null) precision = 18;
+                if (scale == null) scale = 0;
+                metadata.add('<met:precision>' + precision + '</met:precision>');
+                metadata.add('<met:scale>' + scale + '</met:scale>');
+            } else if (fieldType == 'Lookup') {
+                List<Schema.SObjectType> refTo = dfr.getReferenceTo();
+                if (!refTo.isEmpty()) {
+                    metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
+                    String relName = null;
+                    for (Schema.ChildRelationship cr : refTo[0].getDescribe().getChildRelationships()) {
+                        if (cr.getField() == dfr.getSObjectField()) {
+                            relName = cr.getRelationshipName();
+                            break;
+                        }
+                    }
+                    if (String.isNotBlank(relName)) {
+                        if (relName.endsWith('__r')) {
+                            relName = relName.removeEnd('__r');
+                        }
+                        metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
                     }
                 }
-                if (String.isNotBlank(relName)) {
-                    if (relName.endsWith('__r')) {
-                        relName = relName.removeEnd('__r');
-                    }
-                    String childDev = objectName.replace('__c', '').replace('__e', '');
-                    relName = childDev + '_' + relName;
-                    metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
+            } else if (fieldType == 'Picklist' || fieldType == 'MultiselectPicklist') {
+                metadata.add('<met:valueSet>');
+                metadata.add('<met:valueSetDefinition>');
+                for (Schema.PicklistEntry ple : dfr.getPicklistValues()) {
+                    metadata.add('<met:value>');
+                    metadata.add('<met:fullName>' + ple.getValue().escapeXml() + '</met:fullName>');
+                    metadata.add('<met:label>' + ple.getLabel().escapeXml() + '</met:label>');
+                    metadata.add('<met:default>' + ple.isDefaultValue() + '</met:default>');
+                    metadata.add('</met:value>');
                 }
+                metadata.add('</met:valueSetDefinition>');
+                metadata.add('</met:valueSet>');
+            } else if (fieldType == 'Checkbox') {
+                Boolean defVal = false;
+                if (dfr.getDefaultValue() != null) {
+                    defVal = (Boolean)dfr.getDefaultValue();
+                }
+                metadata.add('<met:defaultValue>' + defVal + '</met:defaultValue>');
             }
-        } else if (fieldType == 'Picklist' || fieldType == 'MultiselectPicklist') {
-            metadata.add('<met:valueSet>');
-            metadata.add('<met:valueSetDefinition>');
-            for (Schema.PicklistEntry ple : dfr.getPicklistValues()) {
-                metadata.add('<met:value>');
-                metadata.add('<met:fullName>' + ple.getValue().escapeXml() + '</met:fullName>');
-                metadata.add('<met:label>' + ple.getLabel().escapeXml() + '</met:label>');
-                metadata.add('<met:default>' + ple.isDefaultValue() + '</met:default>');
-                metadata.add('</met:value>');
+            
+            if (dfr.isCalculated() && String.isNotBlank(dfr.getCalculatedFormula())) {
+                metadata.add('<met:formula>' + dfr.getCalculatedFormula().escapeXml() + '</met:formula>');
+                metadata.add('<met:formulaTreatBlanksAs>BlankAsZero</met:formulaTreatBlanksAs>');
             }
-            metadata.add('</met:valueSetDefinition>');
-            metadata.add('</met:valueSet>');
-        } else if (fieldType == 'Checkbox') {
-            Boolean defVal = false;
-            if (dfr.getDefaultValue() != null) {
-                defVal = (Boolean)dfr.getDefaultValue();
-            }
-            metadata.add('<met:defaultValue>' + defVal + '</met:defaultValue>');
+            
+            metadata.add('</met:metadata>');
         }
-        
-        if (dfr.isCalculated() && String.isNotBlank(dfr.getCalculatedFormula())) {
-            metadata.add('<met:formula>' + dfr.getCalculatedFormula().escapeXml() + '</met:formula>');
-            metadata.add('<met:formulaTreatBlanksAs>BlankAsZero</met:formulaTreatBlanksAs>');
-        }
-        
-        metadata.add('</met:metadata>');
 
         String soap = '';
         soap += '<?xml version="1.0" encoding="utf-8"?>';
@@ -486,15 +653,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
 
         HttpResponse res = new Http().send(req);
         String responseBody = res.getBody();
-        if (res.getStatusCode() != 200 || responseBody.contains('<success>false</success>')) {
+        if (res.getStatusCode() != 200) {
             String errorMsg = parseSoapError(responseBody);
-            if (errorMsg != null && (errorMsg.contains('already exists') || errorMsg.contains('already a field named') || errorMsg.contains('duplicate'))) {
-                addLog('CustomField ' + objectName + '.' + fieldName + ' already exists in target org.');
-            } else {
-                throw new DeploymentExecutionException('Failed to deploy CustomField ' + objectName + '.' + fieldName + ' via Metadata API: ' + errorMsg);
-            }
+            throw new DeploymentExecutionException('Failed to deploy CustomFields for ' + objectName + ' via Metadata API: ' + errorMsg);
         } else {
-            addLog('CustomField ' + objectName + '.' + fieldName + ' deployed successfully.');
+            addLog('Deployed batch of ' + fieldsList.size() + ' custom fields for ' + objectName + '.');
         }
     }
 
@@ -586,67 +749,81 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         return soapBody;
     }
 
-    private void deployApexClassInMemory(String apiName, String targetUrl, String targetToken) {
-        List<ApexClass> localClasses = [SELECT Name, Body FROM ApexClass WHERE Name = :apiName LIMIT 1];
-        if (localClasses.isEmpty()) {
-            addLog('ApexClass ' + apiName + ' not found in the source org. Skipping deployment.');
-            return;
+    private void deployApexClassesBulk(List<User_Story_Metadata__c> classComps, String targetUrl, String targetToken) {
+        if (classComps.isEmpty()) return;
+        
+        addLog('Deploying ' + classComps.size() + ' Apex classes in bulk...');
+        
+        // Retrieve local bodies of all classes
+        Set<String> classNames = new Set<String>();
+        for (User_Story_Metadata__c comp : classComps) {
+            classNames.add(comp.Metadata_API_Name__c);
         }
-        String classBody = localClasses[0].Body;
-
+        
+        Map<String, String> localClassBodies = new Map<String, String>();
+        for (ApexClass ac : [SELECT Name, Body FROM ApexClass WHERE Name IN :classNames]) {
+            localClassBodies.put(ac.Name.toLowerCase(), ac.Body);
+        }
+        
+        // Step 1: Ensure all classes exist in target org (create shell stubs if missing)
         Http h = new Http();
-        HttpRequest queryReq = new HttpRequest();
-        String classSoql = 'SELECT Id FROM ApexClass WHERE Name = \'' + apiName + '\'';
-        queryReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(classSoql, 'UTF-8'));
-        queryReq.setMethod('GET');
-        queryReq.setHeader('Authorization', 'Bearer ' + targetToken);
-        queryReq.setHeader('Content-Type', 'application/json');
-        
-        HttpResponse queryRes = h.send(queryReq);
-        if (queryRes.getStatusCode() != 200) {
-            throw new DeploymentExecutionException('Failed to query class status in target org: ' + queryRes.getBody());
-        }
-
-        Map<String, Object> responseMap = (Map<String, Object>) JSON.deserializeUntyped(queryRes.getBody());
-        List<Object> records = (List<Object>) responseMap.get('records');
-        
-        HttpRequest deployReq = new HttpRequest();
-        deployReq.setHeader('Authorization', 'Bearer ' + targetToken);
-        deployReq.setHeader('Content-Type', 'application/json');
-
-        if (records != null && !records.isEmpty()) {
-            // Update existing class via MetadataContainer to support Sandbox/Prod org compilation
-            Map<String, Object> record = (Map<String, Object>) records[0];
-            String classId = (String) record.get('Id');
-            deployApexClassViaContainer(apiName, classId, classBody, targetUrl, targetToken);
-            return;
-        } else {
-            // Create new class (POST)
-            deployReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass');
-            deployReq.setMethod('POST');
+        for (User_Story_Metadata__c comp : classComps) {
+            String name = comp.Metadata_API_Name__c;
+            if (!localClassBodies.containsKey(name.toLowerCase())) {
+                addLog('ApexClass ' + name + ' not found in the source org. Skipping deployment.');
+                continue;
+            }
+            String classId = targetApexClassIds.get(name.toLowerCase());
             
-            Map<String, Object> payload = new Map<String, Object>();
-            payload.put('Name', apiName);
-            payload.put('Body', classBody);
-            deployReq.setBody(JSON.serialize(payload));
-            
-            addLog('Creating ApexClass ' + apiName + ' in target org...');
-        }
-
-        HttpResponse deployRes = h.send(deployReq);
-        Integer statusCode = deployRes.getStatusCode();
-        if (statusCode != 200 && statusCode != 201 && statusCode != 204) {
-            String errorMsg = parseErrorMessage(deployRes.getBody());
-            throw new DeploymentExecutionException('Compilation/Deployment failed for ApexClass ' + apiName + ': ' + errorMsg);
+            if (classId == null) {
+                // Create a basic shell stub class first
+                HttpRequest createReq = new HttpRequest();
+                createReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass');
+                createReq.setMethod('POST');
+                createReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                createReq.setHeader('Content-Type', 'application/json');
+                
+                Map<String, Object> payload = new Map<String, Object>();
+                payload.put('Name', name);
+                payload.put('Body', 'public class ' + name + ' {}');
+                createReq.setBody(JSON.serialize(payload));
+                
+                addLog('Creating shell stub for ApexClass ' + name + '...');
+                HttpResponse createRes = h.send(createReq);
+                Integer code = createRes.getStatusCode();
+                if (code == 200 || code == 201) {
+                    Map<String, Object> resMap = (Map<String, Object>) JSON.deserializeUntyped(createRes.getBody());
+                    classId = (String) resMap.get('id');
+                    targetApexClassIds.put(name.toLowerCase(), classId);
+                } else {
+                    // Check if it already exists (concurrency safety)
+                    String err = parseErrorMessage(createRes.getBody());
+                    if (err != null && err.contains('Duplicate')) {
+                        // Query the ID
+                        HttpRequest qReq = new HttpRequest();
+                        String qSoql = 'SELECT Id FROM ApexClass WHERE Name = \'' + name + '\'';
+                        qReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(qSoql, 'UTF-8'));
+                        qReq.setMethod('GET');
+                        qReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                        qReq.setHeader('Content-Type', 'application/json');
+                        HttpResponse qRes = h.send(qReq);
+                        if (qRes.getStatusCode() == 200) {
+                            Map<String, Object> qMap = (Map<String, Object>) JSON.deserializeUntyped(qRes.getBody());
+                            List<Object> recs = (List<Object>) qMap.get('records');
+                            if (recs != null && !recs.isEmpty()) {
+                                classId = (String) ((Map<String, Object>) recs[0]).get('Id');
+                                targetApexClassIds.put(name.toLowerCase(), classId);
+                            }
+                        }
+                    }
+                    if (classId == null) {
+                        throw new DeploymentExecutionException('Failed to create ApexClass stub for ' + name + ': ' + err);
+                    }
+                }
+            }
         }
         
-        addLog('ApexClass ' + apiName + ' deployed successfully.');
-    }
-
-    private void deployApexClassViaContainer(String apiName, String classId, String classBody, String targetUrl, String targetToken) {
-        Http h = new Http();
-        
-        // Step 1: Create MetadataContainer
+        // Step 2: Create a MetadataContainer
         HttpRequest containerReq = new HttpRequest();
         containerReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/MetadataContainer');
         containerReq.setMethod('POST');
@@ -664,25 +841,32 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         Map<String, Object> containerMap = (Map<String, Object>) JSON.deserializeUntyped(containerRes.getBody());
         String containerId = (String) containerMap.get('id');
         
-        // Step 2: Create ApexClassMember
-        HttpRequest memberReq = new HttpRequest();
-        memberReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClassMember');
-        memberReq.setMethod('POST');
-        memberReq.setHeader('Authorization', 'Bearer ' + targetToken);
-        memberReq.setHeader('Content-Type', 'application/json');
-        
-        Map<String, Object> memberPayload = new Map<String, Object>();
-        memberPayload.put('MetadataContainerId', containerId);
-        memberPayload.put('ContentEntityId', classId);
-        memberPayload.put('Body', classBody);
-        memberReq.setBody(JSON.serialize(memberPayload));
-        
-        HttpResponse memberRes = h.send(memberReq);
-        if (memberRes.getStatusCode() != 201) {
-            throw new DeploymentExecutionException('Failed to create ApexClassMember: ' + memberRes.getBody());
+        // Step 3: Create ApexClassMember for each class with its full local body
+        for (User_Story_Metadata__c comp : classComps) {
+            String name = comp.Metadata_API_Name__c;
+            String classId = targetApexClassIds.get(name.toLowerCase());
+            String body = localClassBodies.get(name.toLowerCase());
+            if (body == null) continue;
+            
+            HttpRequest memberReq = new HttpRequest();
+            memberReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClassMember');
+            memberReq.setMethod('POST');
+            memberReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            memberReq.setHeader('Content-Type', 'application/json');
+            
+            Map<String, Object> memberPayload = new Map<String, Object>();
+            memberPayload.put('MetadataContainerId', containerId);
+            memberPayload.put('ContentEntityId', classId);
+            memberPayload.put('Body', body);
+            memberReq.setBody(JSON.serialize(memberPayload));
+            
+            HttpResponse memberRes = h.send(memberReq);
+            if (memberRes.getStatusCode() != 201) {
+                throw new DeploymentExecutionException('Failed to create ApexClassMember for ' + name + ': ' + memberRes.getBody());
+            }
         }
         
-        // Step 3: Create ContainerAsyncRequest
+        // Step 4: Submit ContainerAsyncRequest to compile all of them together
         HttpRequest requestReq = new HttpRequest();
         requestReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest');
         requestReq.setMethod('POST');
@@ -701,7 +885,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         Map<String, Object> requestMap = (Map<String, Object>) JSON.deserializeUntyped(requestRes.getBody());
         String compileRequestId = (String) requestMap.get('id');
         
-        // Step 4: Poll ContainerAsyncRequest status
+        // Step 5: Poll ContainerAsyncRequest status
         String status = 'Queued';
         String errorMsg = '';
         for (Integer i = 0; i < 30; i++) {
@@ -738,9 +922,9 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         }
         
         if (status != 'Completed') {
-            throw new DeploymentExecutionException('Compilation/Deployment failed for ApexClass ' + apiName + ': ' + (String.isNotBlank(errorMsg) ? errorMsg : status));
+            throw new DeploymentExecutionException('Compilation/Deployment failed for ApexClasses in bulk: ' + (String.isNotBlank(errorMsg) ? errorMsg : status));
         }
-        addLog('ApexClass ' + apiName + ' deployed and compiled successfully.');
+        addLog('All Apex classes deployed and compiled successfully in bulk.');
     }
 
     private String parseErrorMessage(String body) {

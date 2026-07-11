@@ -148,7 +148,7 @@ public with sharing class DeploymentRuntimeService {
 
     // Helper validation (Single responsibility: validates only)
     private static void validatePreconditions(Deployment_Request__c req, String actionType) {
-        if (req.Status__c == 'Pending' || req.Status__c == 'Deploying' || req.Status__c == 'Validating') {
+        if (req.Status__c == 'Deploying' || req.Status__c == 'Validating') {
             throw new DeploymentRuntimeServiceException('Cannot trigger action. Another execution is already in progress.');
         }
         if (req.Target_Environment__c == null) {
