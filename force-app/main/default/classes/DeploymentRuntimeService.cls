@@ -48,14 +48,15 @@ public with sharing class DeploymentRuntimeService {
             // Step 3: Resolve target environment credentials DTO (no DML inside helper)
             DeploymentCredentialController.CredentialWrapper credWrap = resolveTargetCredential(req.Target_Environment__c);
 
-            // Step 4: Consolidate state update to Pending (execution engine will transition to validating/deploying)
+            // Step 4: Mark execution as active before the async callout transaction starts.
             Datetime now = System.now();
             Id credId = (req.Credential__c == null && credWrap != null) ? (Id)credWrap.credentialId : null;
+            String activeStatus = (actionType == 'Validate') ? 'Validating' : 'Deploying';
             
-            DeploymentExecutionHelper.applyRuntimeState(requestId, 'Pending', now, null, credId);
+            DeploymentExecutionHelper.applyRuntimeState(requestId, activeStatus, now, null, credId);
 
             // Step 5: Create execution logging
-            DeploymentExecutionHelper.createInfoLog(requestId, 'Execution initialized. Deployment request status set to Pending.');
+            DeploymentExecutionHelper.createInfoLog(requestId, 'Execution initialized. Deployment request status set to ' + activeStatus + '.');
 
             // Step 6: Enqueue Queueable
             System.enqueueJob(new DeploymentExecutionQueueable(requestId, actionType));
@@ -63,8 +64,8 @@ public with sharing class DeploymentRuntimeService {
             // Return result DTO
             DeploymentResult res = new DeploymentResult();
             res.success = true;
-            res.message = 'Deployment request transitioned to Pending.';
-            res.currentStatus = 'Pending';
+            res.message = 'Deployment request transitioned to ' + activeStatus + '.';
+            res.currentStatus = activeStatus;
             res.startedTime = now;
             res.requestId = requestId;
             return res;
