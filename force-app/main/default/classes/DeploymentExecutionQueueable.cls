@@ -235,7 +235,14 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 'PipelineMetadataProcessor',
                 'PipelineConfigurationService',
                 'PipelineRuntimeUpdaterService',
-                'UserStoryMetadataService'
+                'UserStoryMetadataService',
+                'MetadataService',
+                'MetadataApiService',
+                'MetadataConnectionService',
+                'MetadataAuthenticationService',
+                'MetadataTokenService',
+                'MetadataDiscoveryService',
+                'ExternalMetadataController'
             };
             for (String name : corePipelineClasses) {
                 if (!existingNames.contains(name)) {
@@ -404,7 +411,14 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             'MetadataScannerService',
             'PipelineConfigurationService',
             'PipelineMetadataProcessor',
-            'UserStoryMetadataService'
+            'UserStoryMetadataService',
+            'MetadataService',
+            'MetadataApiService',
+            'MetadataConnectionService',
+            'MetadataAuthenticationService',
+            'MetadataTokenService',
+            'MetadataDiscoveryService',
+            'ExternalMetadataController'
         };
         for (String coreName : corePriority) {
             for (User_Story_Metadata__c comp : classComps) {
