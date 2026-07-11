@@ -35,7 +35,7 @@ private class DeploymentRuntimeFlowActionTest {
 
         System.assertEquals(1, results.size(), 'Expected one response result');
         System.assert(results[0].success, 'Expected invocable validation action to return success');
-        System.assertEquals('Pending', results[0].currentStatus);
+        System.assertEquals('Validating', results[0].currentStatus);
         System.assertEquals(req.Id, results[0].requestId);
     }
 
