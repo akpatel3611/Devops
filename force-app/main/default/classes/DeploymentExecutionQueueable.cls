@@ -103,11 +103,32 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
      */
     private void executeDeploymentInMemory() {
         Deployment_Request__c req = [
-            SELECT Id, User_Story__c 
+            SELECT Id, User_Story__c, Source_Environment__c 
             FROM Deployment_Request__c 
             WHERE Id = :requestId 
             LIMIT 1
         ];
+        
+        // Generate source access token and endpoint
+        Id sourceCredentialId = null;
+        if (req.Source_Environment__c != null) {
+            DeploymentCredentialController.CredentialWrapper sourceWrap = DeploymentCredentialController.getCredentialByEnvironment(req.Source_Environment__c);
+            if (sourceWrap != null) {
+                sourceCredentialId = sourceWrap.credentialId;
+            }
+        }
+        String sourceToken = '';
+        String sourceUrl = '';
+        if (sourceCredentialId != null) {
+            try {
+                MetadataAuthenticationService.OAuthTokenResponse sourceTokenResponse = 
+                    MetadataAuthenticationService.generateAccessToken(sourceCredentialId);
+                sourceToken = sourceTokenResponse.accessToken;
+                sourceUrl = sourceTokenResponse.instanceUrl;
+            } catch (Exception ex) {
+                addLog('Warning: Could not resolve source environment credentials: ' + ex.getMessage());
+            }
+        }
 
         // Generate target access token and endpoint
         MetadataAuthenticationService.OAuthTokenResponse tokenResponse = 
@@ -448,10 +469,14 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         
         deployApexClassesBulk(sortedClassComps, targetUrl, targetToken);
 
-        // Pass 3: Deploy other components (Skip or simulate)
+        // Pass 3: Deploy other components (LWC, etc.)
         for (User_Story_Metadata__c comp : comps) {
             String metaType = comp.Metadata_Type__c;
-            if (metaType != 'CustomObject' && metaType != 'ApexClass' && metaType != 'CustomField') {
+            if (metaType == 'LightningComponentBundle') {
+                if (comp.Metadata_API_Name__c != null) {
+                    deployLightningComponentBundle(comp.Metadata_API_Name__c, sourceUrl, sourceToken, targetUrl, targetToken);
+                }
+            } else if (metaType != 'CustomObject' && metaType != 'ApexClass' && metaType != 'CustomField') {
                 addLog('Component ' + comp.Metadata_API_Name__c + ' (' + metaType + ') is simulated.');
             }
         }
@@ -1039,6 +1064,161 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         Long startTime = System.now().getTime();
         while (System.now().getTime() - startTime < 100) {
             // Busy wait
+        }
+    }
+
+    private void deployLightningComponentBundle(String developerName, String sourceUrl, String sourceToken, String targetUrl, String targetToken) {
+        if (String.isBlank(sourceUrl) || String.isBlank(sourceToken)) {
+            addLog('Source org credentials not available for LWC deployment. Skipping ' + developerName);
+            return;
+        }
+
+        addLog('Deploying LightningComponentBundle ' + developerName + ' from source org to target org...');
+        
+        try {
+            Http h = new Http();
+            
+            // 1. Query source resources
+            String srcQuery = 'SELECT FilePath, Format, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = \'' + developerName + '\'';
+            HttpRequest srcReq = new HttpRequest();
+            srcReq.setEndpoint(sourceUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(srcQuery, 'UTF-8'));
+            srcReq.setMethod('GET');
+            srcReq.setHeader('Authorization', 'Bearer ' + sourceToken);
+            srcReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse srcRes = h.send(srcReq);
+            if (srcRes.getStatusCode() != 200) {
+                throw new DeploymentExecutionException('Failed to fetch source LWC resources: ' + srcRes.getBody());
+            }
+            
+            Map<String, Object> srcData = (Map<String, Object>) JSON.deserializeUntyped(srcRes.getBody());
+            List<Object> srcRecords = (List<Object>) srcData.get('records');
+            if (srcRecords == null || srcRecords.isEmpty()) {
+                addLog('No resources found for LWC bundle ' + developerName + ' in source org. Skipping.');
+                return;
+            }
+            
+            // 2. Query target bundle to see if it exists
+            String tgtQuery = 'SELECT Id FROM LightningComponentBundle WHERE DeveloperName = \'' + developerName + '\'';
+            HttpRequest tgtReq = new HttpRequest();
+            tgtReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(tgtQuery, 'UTF-8'));
+            tgtReq.setMethod('GET');
+            tgtReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            tgtReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse tgtRes = h.send(tgtReq);
+            String targetBundleId = null;
+            if (tgtRes.getStatusCode() == 200) {
+                Map<String, Object> tgtData = (Map<String, Object>) JSON.deserializeUntyped(tgtRes.getBody());
+                List<Object> tgtRecords = (List<Object>) tgtData.get('records');
+                if (tgtRecords != null && !tgtRecords.isEmpty()) {
+                    targetBundleId = (String) ((Map<String, Object>) tgtRecords[0]).get('Id');
+                }
+            }
+            
+            // 3. Create target bundle if not exists
+            if (targetBundleId == null) {
+                addLog('Creating LWC bundle ' + developerName + ' in target org...');
+                HttpRequest createBundleReq = new HttpRequest();
+                createBundleReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/LightningComponentBundle');
+                createBundleReq.setMethod('POST');
+                createBundleReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                createBundleReq.setHeader('Content-Type', 'application/json');
+                
+                Map<String, Object> bundleMeta = new Map<String, Object>();
+                bundleMeta.put('apiVersion', 60.0);
+                bundleMeta.put('isExposed', true);
+                bundleMeta.put('masterLabel', developerName);
+                
+                Map<String, Object> bundlePayload = new Map<String, Object>();
+                bundlePayload.put('FullName', developerName);
+                bundlePayload.put('Metadata', bundleMeta);
+                
+                createBundleReq.setBody(JSON.serialize(bundlePayload));
+                HttpResponse createBundleRes = h.send(createBundleReq);
+                if (createBundleRes.getStatusCode() != 201) {
+                    throw new DeploymentExecutionException('Failed to create LWC bundle in target org: ' + createBundleRes.getBody());
+                }
+                
+                Map<String, Object> createBundleMap = (Map<String, Object>) JSON.deserializeUntyped(createBundleRes.getBody());
+                targetBundleId = (String) createBundleMap.get('id');
+            } else {
+                addLog('LWC bundle ' + developerName + ' already exists in target org.');
+            }
+            
+            // 4. Query target resources for this bundle
+            String resQuery = 'SELECT Id, FilePath FROM LightningComponentResource WHERE LightningComponentBundleId = \'' + targetBundleId + '\'';
+            HttpRequest resReq = new HttpRequest();
+            resReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/query/?q=' + EncodingUtil.urlEncode(resQuery, 'UTF-8'));
+            resReq.setMethod('GET');
+            resReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            resReq.setHeader('Content-Type', 'application/json');
+            
+            HttpResponse resRes = h.send(resReq);
+            Map<String, String> targetResources = new Map<String, String>();
+            if (resRes.getStatusCode() == 200) {
+                Map<String, Object> resData = (Map<String, Object>) JSON.deserializeUntyped(resRes.getBody());
+                List<Object> resRecords = (List<Object>) resData.get('records');
+                if (resRecords != null) {
+                    for (Object rec : resRecords) {
+                        Map<String, Object> rMap = (Map<String, Object>) rec;
+                        targetResources.put((String) rMap.get('FilePath'), (String) rMap.get('Id'));
+                    }
+                }
+            }
+            
+            // 5. Create or Update resources
+            for (Object obj : srcRecords) {
+                Map<String, Object> srcRec = (Map<String, Object>) obj;
+                String filePath = (String) srcRec.get('FilePath');
+                String format = (String) srcRec.get('Format');
+                String source = (String) srcRec.get('Source');
+                
+                String targetResId = targetResources.get(filePath);
+                if (targetResId != null) {
+                    // Update
+                    addLog('Updating LWC resource ' + filePath + ' in target org...');
+                    HttpRequest updateResReq = new HttpRequest();
+                    updateResReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/LightningComponentResource/' + targetResId);
+                    updateResReq.setMethod('PATCH');
+                    updateResReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                    updateResReq.setHeader('Content-Type', 'application/json');
+                    
+                    Map<String, Object> updatePayload = new Map<String, Object>();
+                    updatePayload.put('Source', source);
+                    updateResReq.setBody(JSON.serialize(updatePayload));
+                    
+                    HttpResponse updateResRes = h.send(updateResReq);
+                    if (updateResRes.getStatusCode() != 204 && updateResRes.getStatusCode() != 200) {
+                        throw new DeploymentExecutionException('Failed to update LWC resource ' + filePath + ': ' + updateResRes.getBody());
+                    }
+                } else {
+                    // Create
+                    addLog('Creating LWC resource ' + filePath + ' in target org...');
+                    HttpRequest createResReq = new HttpRequest();
+                    createResReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/LightningComponentResource');
+                    createResReq.setMethod('POST');
+                    createResReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                    createResReq.setHeader('Content-Type', 'application/json');
+                    
+                    Map<String, Object> createPayload = new Map<String, Object>();
+                    createPayload.put('LightningComponentBundleId', targetBundleId);
+                    createPayload.put('FilePath', filePath);
+                    createPayload.put('Format', format);
+                    createPayload.put('Source', source);
+                    createResReq.setBody(JSON.serialize(createPayload));
+                    
+                    HttpResponse createResRes = h.send(createResReq);
+                    if (createResRes.getStatusCode() != 201) {
+                        throw new DeploymentExecutionException('Failed to create LWC resource ' + filePath + ': ' + createResRes.getBody());
+                    }
+                }
+            }
+            
+            addLog('LightningComponentBundle ' + developerName + ' deployed successfully.');
+        } catch (Exception ex) {
+            addLog('Error deploying LWC ' + developerName + ': ' + ex.getMessage());
+            throw ex;
         }
     }
 }
