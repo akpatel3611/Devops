@@ -51,3 +51,4 @@ export default class ResumeAiBuilder extends LightningElement {
         });
     }
 }
+/* Simulated metadata content for resumeAiBuilder (LightningComponentBundle) */
