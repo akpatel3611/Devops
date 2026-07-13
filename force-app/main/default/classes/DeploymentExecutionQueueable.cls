@@ -379,10 +379,23 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         }
 
         // Pass 1b: Deploy Custom Object Fields (when all base containers exist)
+        Set<String> processedObjectsForFields = new Set<String>();
         for (User_Story_Metadata__c comp : comps) {
             if (comp.Metadata_Type__c == 'CustomObject') {
                 if (comp.Metadata_API_Name__c != null && (comp.Metadata_API_Name__c.endsWith('__c') || comp.Metadata_API_Name__c.endsWith('__e'))) {
-                    deployCustomObjectFields(comp.Metadata_API_Name__c, targetUrl, targetToken);
+                    String objName = comp.Metadata_API_Name__c;
+                    if (!processedObjectsForFields.contains(objName.toLowerCase())) {
+                        deployCustomObjectFields(objName, targetUrl, targetToken);
+                        processedObjectsForFields.add(objName.toLowerCase());
+                    }
+                }
+            } else if (comp.Metadata_Type__c == 'CustomField') {
+                if (comp.Metadata_API_Name__c != null && comp.Metadata_API_Name__c.contains('.')) {
+                    String objName = comp.Metadata_API_Name__c.split('\\.')[0];
+                    if (!processedObjectsForFields.contains(objName.toLowerCase())) {
+                        deployCustomObjectFields(objName, targetUrl, targetToken);
+                        processedObjectsForFields.add(objName.toLowerCase());
+                    }
                 }
             }
         }
@@ -438,7 +451,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         // Pass 3: Deploy other components (Skip or simulate)
         for (User_Story_Metadata__c comp : comps) {
             String metaType = comp.Metadata_Type__c;
-            if (metaType != 'CustomObject' && metaType != 'ApexClass') {
+            if (metaType != 'CustomObject' && metaType != 'ApexClass' && metaType != 'CustomField') {
                 addLog('Component ' + comp.Metadata_API_Name__c + ' (' + metaType + ') is simulated.');
             }
         }
