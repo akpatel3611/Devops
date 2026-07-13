@@ -1,4 +1,4 @@
-public with sharing class MetadataAuthenticationService {
+public without sharing class MetadataAuthenticationService {
 
     public class CredentialWrapper {
 

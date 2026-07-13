@@ -299,7 +299,7 @@ public with sharing class CommitChangesRuntimeService {
             if (dreq.User_Story__c != userStoryId) {
                 errors.add('Deployment Request does not belong to the current User Story.');
             }
-            if (dreq.Status__c != 'Draft' && dreq.Status__c != 'Pending') {
+            if (dreq.Status__c != 'Draft' && dreq.Status__c != 'Pending' && dreq.Status__c != 'Validated') {
                 errors.add('Deployment Request is in an invalid state for commit. Current Status: ' + dreq.Status__c);
             }
         }

@@ -41,6 +41,9 @@ import compareMetadata from '@salesforce/apex/CompareMetadataController.compareM
 import validateDeployment
 from '@salesforce/apex/DeploymentValidationController.validateDeployment';
 
+import getDeploymentStatus
+from '@salesforce/apex/DeploymentRequestActionController.getDeploymentStatus';
+
 import checkPRStatusAndDeploy from '@salesforce/apex/MetadataSelectionController.checkPRStatusAndDeploy';
 
 export default class DeploymentDashboard extends LightningElement {
@@ -572,6 +575,7 @@ export default class DeploymentDashboard extends LightningElement {
 
         this.validationResults = [];
         this.isValidating = true;
+        this.deploymentLogs = [];
 
         const componentNames = this.selectedComponents.map(item => item.value);
 
@@ -582,30 +586,55 @@ export default class DeploymentDashboard extends LightningElement {
             componentNames: componentNames
         })
         .then(result => {
-            this.validationResults = result;
-            
-            const hasFailures = result.some(item => item.status === 'Failure' || item.status === 'Error');
-            if (hasFailures) {
-                this.showError('Validation failed with errors. Fix conflicts before deploying.');
+            const reqResult = result.find(item => item.checkName === 'ValidationRequest');
+            if (reqResult && reqResult.status === 'PENDING') {
+                const requestId = reqResult.message;
+                this.validationRequestId = requestId;
+                this.startValidationPolling(requestId);
             } else {
-                // Transition to Deploy button
-                this.showSaveButton = false;
-                this.showValidateButton = false;
-                this.showDeployButton = true;
-                
-                this.dispatchEvent(new ShowToastEvent({
-                    title: 'Success',
-                    message: 'Validation passed successfully. Ready to deploy!',
-                    variant: 'success'
-                }));
+                this.isValidating = false;
+                this.showError('Could not start validation.');
             }
         })
         .catch(error => {
-            this.showError(error?.body?.message || 'Validation failed.');
-        })
-        .finally(() => {
             this.isValidating = false;
+            this.showError(error?.body?.message || 'Validation failed.');
         });
+    }
+
+    startValidationPolling(requestId) {
+        if (this.validationIntervalId) {
+            clearInterval(this.validationIntervalId);
+        }
+
+        this.validationIntervalId = setInterval(() => {
+            getDeploymentStatus({ requestId: requestId })
+            .then(result => {
+                this.deploymentLogs = result.logs;
+                if (result.status === 'Validated') {
+                    clearInterval(this.validationIntervalId);
+                    this.isValidating = false;
+                    this.showSaveButton = false;
+                    this.showValidateButton = false;
+                    this.showDeployButton = true;
+                    
+                    this.dispatchEvent(new ShowToastEvent({
+                        title: 'Success',
+                        message: 'Validation passed successfully. Ready to deploy!',
+                        variant: 'success'
+                    }));
+                } else if (result.status === 'Failed') {
+                    clearInterval(this.validationIntervalId);
+                    this.isValidating = false;
+                    this.showError('Validation failed with errors. Fix issues before deploying.');
+                }
+            })
+            .catch(error => {
+                clearInterval(this.validationIntervalId);
+                this.isValidating = false;
+                this.showError('Validation status check failed.');
+            });
+        }, 3000);
     }
 
     handleDeploy() {

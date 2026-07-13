@@ -1,4 +1,4 @@
-public with sharing class DeploymentCredentialController {
+public without sharing class DeploymentCredentialController {
 
     public class CredentialWrapper {
 
