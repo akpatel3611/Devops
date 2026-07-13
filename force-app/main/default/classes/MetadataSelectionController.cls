@@ -154,7 +154,7 @@ public with sharing class MetadataSelectionController {
             }
 
             User_Story__c story = [
-                SELECT Id, Source_Environment__c,
+                SELECT Id, Source_Environment__c, Feature_Branch__c,
                        Project__r.Git_Repository__r.Repository_Name__c,
                        Project__r.Git_Repository__r.Repository_Owner__c,
                        Project__r.Git_Repository__r.Default_Branch__c,
@@ -229,49 +229,54 @@ public with sharing class MetadataSelectionController {
             }
 
             for (String branch : activeBranches) {
-                String compEndpoint = baseUrl + '/repos/' + owner + '/' + repoName + '/compare/' + defaultBranch + '...' + branch;
-                HttpRequest compReq = new HttpRequest();
-                compReq.setEndpoint(compEndpoint);
-                compReq.setMethod('GET');
-                compReq.setTimeout(60000);
-                compReq.setHeader('Accept', 'application/vnd.github+json');
-                compReq.setHeader('Authorization', 'Bearer ' + token);
-                compReq.setHeader('User-Agent', 'Salesforce-Release-Management');
+                Boolean matchesAll = false;
+                
+                // If the branch name matches the User Story's feature branch, it's an automatic match!
+                if (String.isNotBlank(story.Feature_Branch__c) && branch.toLowerCase() == story.Feature_Branch__c.toLowerCase()) {
+                    matchesAll = true;
+                } else {
+                    String compEndpoint = baseUrl + '/repos/' + owner + '/' + repoName + '/compare/' + defaultBranch + '...' + branch;
+                    HttpRequest compReq = new HttpRequest();
+                    compReq.setEndpoint(compEndpoint);
+                    compReq.setMethod('GET');
+                    compReq.setTimeout(60000);
+                    compReq.setHeader('Accept', 'application/vnd.github+json');
+                    compReq.setHeader('Authorization', 'Bearer ' + token);
+                    compReq.setHeader('User-Agent', 'Salesforce-Release-Management');
 
-                HttpResponse compRes = new Http().send(compReq);
-                if (compRes.getStatusCode() == 200) {
-                    Map<String, Object> compData = (Map<String, Object>) JSON.deserializeUntyped(compRes.getBody());
-                    List<Object> files = (List<Object>) compData.get('files');
-                    Set<String> changedPaths = new Set<String>();
-                    if (files != null) {
-                        for (Object fileObj : files) {
-                            Map<String, Object> fileInfo = (Map<String, Object>) fileObj;
-                            String filename = (String) fileInfo.get('filename');
-                            if (String.isNotBlank(filename)) {
-                                changedPaths.add(filename.toLowerCase().trim());
+                    HttpResponse compRes = new Http().send(compReq);
+                    if (compRes.getStatusCode() == 200) {
+                        Map<String, Object> compData = (Map<String, Object>) JSON.deserializeUntyped(compRes.getBody());
+                        List<Object> files = (List<Object>) compData.get('files');
+                        Set<String> changedPaths = new Set<String>();
+                        if (files != null) {
+                            for (Object fileObj : files) {
+                                Map<String, Object> fileInfo = (Map<String, Object>) fileObj;
+                                String filename = (String) fileInfo.get('filename');
+                                if (String.isNotBlank(filename)) {
+                                    changedPaths.add(filename.toLowerCase().trim());
+                                }
                             }
                         }
-                    }
 
-                    Boolean matchesAll = true;
-                    for (String path : filePaths) {
-                        String strippedPath = stripExtension(path);
-                        Boolean foundMatch = false;
-                        for (String changed : changedPaths) {
-                            if (changed.contains(strippedPath)) {
-                                foundMatch = true;
+                        // Lenient check: match if at least one selected file is modified in the branch compared to main
+                        for (String path : filePaths) {
+                            String strippedPath = stripExtension(path);
+                            for (String changed : changedPaths) {
+                                if (changed.contains(strippedPath)) {
+                                    matchesAll = true;
+                                    break;
+                                }
+                            }
+                            if (matchesAll) {
                                 break;
                             }
                         }
-                        if (!foundMatch) {
-                            matchesAll = false;
-                            break;
-                        }
                     }
+                }
 
-                    if (matchesAll) {
-                        result.matchingBranches.add(branch);
-                    }
+                if (matchesAll) {
+                    result.matchingBranches.add(branch);
                 }
             }
 
