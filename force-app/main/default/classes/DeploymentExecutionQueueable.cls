@@ -904,12 +904,14 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         Http h = new Http();
 
         // Step 1a: Ensure all classes exist in target org (create shell stubs if missing)
+        List<User_Story_Metadata__c> classesToStub = new List<User_Story_Metadata__c>();
         for (User_Story_Metadata__c comp : classComps) {
             String name = comp.Metadata_API_Name__c;
             if (!localClassBodies.containsKey(name.toLowerCase())) {
                 addLog('ApexClass ' + name + ' not found in the source org. Skipping deployment.');
                 continue;
             }
+            classesToStub.add(comp);
             String classId = targetApexClassIds.get(name.toLowerCase());
             
             if (classId == null) {
@@ -921,10 +923,10 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 
                 Map<String, Object> payload = new Map<String, Object>();
                 payload.put('Name', name);
-                payload.put('Body', generateStubBody(name, localClassBodies.get(name.toLowerCase())));
+                payload.put('Body', 'public class ' + name + ' {}');
                 createReq.setBody(JSON.serialize(payload));
                 
-                addLog('Creating shell stub for ApexClass ' + name + '...');
+                addLog('Creating shell stub database record for ApexClass ' + name + '...');
                 HttpResponse createRes = h.send(createReq);
                 Integer code = createRes.getStatusCode();
                 if (code == 200 || code == 201) {
@@ -951,26 +953,103 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                         }
                     }
                     if (classId == null) {
-                        throw new DeploymentExecutionException('Failed to create ApexClass stub for ' + name + ': ' + err);
+                        throw new DeploymentExecutionException('Failed to create ApexClass stub database record for ' + name + ': ' + err);
                     }
                 }
-            } else {
-                addLog('Updating existing target ApexClass ' + name + ' stub to match new @AuraEnabled signatures...');
-                HttpRequest updateReq = new HttpRequest();
-                updateReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass/' + classId);
-                updateReq.setMethod('PATCH');
-                updateReq.setHeader('Authorization', 'Bearer ' + targetToken);
-                updateReq.setHeader('Content-Type', 'application/json');
+            }
+        }
+        
+        // Compile the stubs containing all @AuraEnabled signatures in the target database in bulk
+        if (!classesToStub.isEmpty()) {
+            addLog('Deploying smart stubs with @AuraEnabled signatures to target org database in bulk...');
+            
+            HttpRequest containerReq = new HttpRequest();
+            containerReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/MetadataContainer');
+            containerReq.setMethod('POST');
+            containerReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            containerReq.setHeader('Content-Type', 'application/json');
+            
+            Map<String, Object> cPayload = new Map<String, Object>();
+            cPayload.put('Name', 'StubContainer_' + DateTime.now().getTime());
+            containerReq.setBody(JSON.serialize(cPayload));
+            
+            HttpResponse containerRes = h.send(containerReq);
+            if (containerRes.getStatusCode() != 200 && containerRes.getStatusCode() != 201) {
+                throw new DeploymentExecutionException('Failed to create stub metadata container: ' + containerRes.getBody());
+            }
+            
+            Map<String, Object> containerMap = (Map<String, Object>) JSON.deserializeUntyped(containerRes.getBody());
+            String containerId = (String) containerMap.get('id');
+            
+            for (User_Story_Metadata__c comp : classesToStub) {
+                String name = comp.Metadata_API_Name__c;
+                String classId = targetApexClassIds.get(name.toLowerCase());
                 
-                Map<String, Object> payload = new Map<String, Object>();
-                payload.put('Body', generateStubBody(name, localClassBodies.get(name.toLowerCase())));
-                updateReq.setBody(JSON.serialize(payload));
+                HttpRequest memberReq = new HttpRequest();
+                memberReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClassMember');
+                memberReq.setMethod('POST');
+                memberReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                memberReq.setHeader('Content-Type', 'application/json');
                 
-                HttpResponse updateRes = h.send(updateReq);
-                if (updateRes.getStatusCode() != 204 && updateRes.getStatusCode() != 200) {
-                    addLog('Warning: Failed to update target ApexClass ' + name + ' stub: ' + updateRes.getBody());
+                Map<String, Object> memberPayload = new Map<String, Object>();
+                memberPayload.put('MetadataContainerId', containerId);
+                memberPayload.put('ContentEntityId', classId);
+                memberPayload.put('Body', generateStubBody(name, localClassBodies.get(name.toLowerCase())));
+                memberReq.setBody(JSON.serialize(memberPayload));
+                
+                HttpResponse memberRes = h.send(memberReq);
+                if (memberRes.getStatusCode() != 200 && memberRes.getStatusCode() != 201) {
+                    throw new DeploymentExecutionException('Failed to create stub ApexClassMember for ' + name + ': ' + memberRes.getBody());
                 }
             }
+            
+            HttpRequest deployReq = new HttpRequest();
+            deployReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest');
+            deployReq.setMethod('POST');
+            deployReq.setHeader('Authorization', 'Bearer ' + targetToken);
+            deployReq.setHeader('Content-Type', 'application/json');
+            
+            Map<String, Object> deployPayload = new Map<String, Object>();
+            deployPayload.put('MetadataContainerId', containerId);
+            deployPayload.put('IsCheckOnly', false); // Real deploy to commit stubs to target database
+            deployReq.setBody(JSON.serialize(deployPayload));
+            
+            HttpResponse deployRes = h.send(deployReq);
+            if (deployRes.getStatusCode() != 200 && deployRes.getStatusCode() != 201) {
+                throw new DeploymentExecutionException('Failed to submit stub deployment request: ' + deployRes.getBody());
+            }
+            
+            Map<String, Object> deployMap = (Map<String, Object>) JSON.deserializeUntyped(deployRes.getBody());
+            String deployReqId = (String) deployMap.get('id');
+            
+            String status = 'Queued';
+            String errorMsg = '';
+            for (Integer i = 0; i < 60; i++) {
+                Long start = System.now().getTime();
+                while (System.now().getTime() - start < 1000) {}
+                
+                HttpRequest pollReq = new HttpRequest();
+                pollReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest/' + deployReqId);
+                pollReq.setMethod('GET');
+                pollReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                
+                HttpResponse pollRes = h.send(pollReq);
+                if (pollRes.getStatusCode() == 200) {
+                    Map<String, Object> pollMap = (Map<String, Object>) JSON.deserializeUntyped(pollRes.getBody());
+                    status = (String) pollMap.get('State');
+                    if (status == 'Completed') {
+                        break;
+                    } else if (status == 'Failed' || status == 'Invalidated' || status == 'Error') {
+                        errorMsg = (String) pollMap.get('ErrorMsg');
+                        break;
+                    }
+                }
+            }
+            
+            if (status != 'Completed') {
+                throw new DeploymentExecutionException('Failed to deploy smart stubs: ' + (String.isNotBlank(errorMsg) ? errorMsg : status));
+            }
+            addLog('Smart stubs compiled and saved in target database successfully.');
         }
 
         // Step 1b: Ensure all triggers exist in target org (create shell stubs if missing)
