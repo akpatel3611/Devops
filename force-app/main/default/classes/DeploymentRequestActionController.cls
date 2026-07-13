@@ -45,6 +45,14 @@ public with sharing class DeploymentRequestActionController {
     }
 
     /**
+     * Aura-Enabled endpoint to get status and logs of a request.
+     */
+    @AuraEnabled
+    public static DeploymentRuntimeService.DeploymentStatusResult getDeploymentStatus(Id requestId) {
+        return DeploymentRuntimeService.getDeploymentStatus(requestId);
+    }
+
+    /**
      * Invocable action allowing standard Salesforce declarative actions (Flows) to execute the service.
      */
     @InvocableMethod(label='Execute Deployment Action' description='Triggers validation, deployment, or cancellation for a Deployment Request')
