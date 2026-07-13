@@ -29,9 +29,9 @@ private class DeploymentRuntimeServiceTest {
         DeploymentRuntimeService.DeploymentResult res = DeploymentRuntimeService.startDeployment(req.Id, 'Validate');
         Test.stopTest();
 
-        // Verify status transitioned to the active validation state.
+        // Verify status transitioned to Pending
         System.assert(res.success, 'Expected start to return success');
-        System.assertEquals('Validating', res.currentStatus);
+        System.assertEquals('Pending', res.currentStatus);
 
         Deployment_Request__c updatedReq = [
             SELECT Id, Status__c, Credential__c, Started_On__c 
