@@ -3,6 +3,7 @@ public with sharing class ResumeAiController {
     @AuraEnabled
     public static Id processResumeFile(Id contentVersionId, String masterPrompt) {
         try {
+            // Harmless comment to trigger git difference for end-to-end testing
             // 1. Upload ki hui file ka version data (blob) nikalna
             ContentVersion cv = [SELECT VersionData, Title, FileExtension FROM ContentVersion WHERE Id = :contentVersionId LIMIT 1];
             

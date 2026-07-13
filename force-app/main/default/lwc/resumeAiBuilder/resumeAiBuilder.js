@@ -3,6 +3,7 @@ import processResumeFile from '@salesforce/apex/ResumeAiController.processResume
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class ResumeAiBuilder extends LightningElement {
+    // Harmless comment to trigger git difference for end-to-end testing
     @track uploadedFileId;
     @track promptValue = '';
     @track isLoading = false;
