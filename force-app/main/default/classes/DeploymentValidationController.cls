@@ -24,189 +24,40 @@ public with sharing class DeploymentValidationController {
 
     @AuraEnabled
     public static List<ValidationResult> validateDeployment(
-
         Id sourceEnvironmentId,
         Id targetEnvironmentId,
         String metadataType,
         List<String> componentNames
     ){
+        List<ValidationResult> results = new List<ValidationResult>();
 
-        List<ValidationResult> results =
-            new List<ValidationResult>();
-
-        if(sourceEnvironmentId == null){
-
-            results.add(
-                new ValidationResult(
-                    'Source Environment',
-                    'FAIL',
-                    'Source Environment not selected'
-                )
-            );
-
-            return results;
+        if (sourceEnvironmentId == null || targetEnvironmentId == null) {
+            throw new AuraHandledException('Source and Target environments are required.');
         }
 
-        results.add(
-            new ValidationResult(
-                'Source Environment',
-                'PASS',
-                'Selected'
-            )
-        );
+        List<Deployment_Request__c> reqs = [
+            SELECT Id FROM Deployment_Request__c
+            WHERE Source_Environment__c = :sourceEnvironmentId
+              AND Target_Environment__c = :targetEnvironmentId
+              AND Status__c = 'Draft'
+            ORDER BY CreatedDate DESC
+            LIMIT 1
+        ];
 
-        if(targetEnvironmentId == null){
-
-            results.add(
-                new ValidationResult(
-                    'Target Environment',
-                    'FAIL',
-                    'Target Environment not selected'
-                )
-            );
-
-            return results;
+        if (reqs.isEmpty()) {
+            throw new AuraHandledException('No active Draft deployment request found for the selected environments. Please Save your selections first.');
         }
 
-        results.add(
-            new ValidationResult(
-                'Target Environment',
-                'PASS',
-                'Selected'
-            )
-        );
-
-        if(sourceEnvironmentId == targetEnvironmentId){
-
-            results.add(
-                new ValidationResult(
-                    'Environment Validation',
-                    'FAIL',
-                    'Source and Target cannot be same'
-                )
-            );
-
-            return results;
-        }
-
-        results.add(
-            new ValidationResult(
-                'Environment Validation',
-                'PASS',
-                'Different Environments'
-            )
-        );
-
-        if(String.isBlank(metadataType)){
-
-            results.add(
-                new ValidationResult(
-                    'Metadata Type',
-                    'FAIL',
-                    'Metadata Type not selected'
-                )
-            );
-
-            return results;
-        }
-
-        results.add(
-            new ValidationResult(
-                'Metadata Type',
-                'PASS',
-                metadataType
-            )
-        );
-
-        if(
-            componentNames == null ||
-            componentNames.isEmpty()
-        ){
-
-            results.add(
-                new ValidationResult(
-                    'Metadata Selection',
-                    'FAIL',
-                    'No Metadata Selected'
-                )
-            );
-
-            return results;
-        }
-
-        results.add(
-            new ValidationResult(
-                'Metadata Selection',
-                'PASS',
-                String.valueOf(
-                    componentNames.size()
-                ) + ' Components Selected'
-            )
-        );
-
-        try{
-
-            DeploymentCredentialController.CredentialWrapper sourceCredential =
-
-                DeploymentCredentialController.getCredentialByEnvironment(
-                    sourceEnvironmentId
-                );
-
-            results.add(
-                new ValidationResult(
-                    'Source Credential',
-                    'PASS',
-                    sourceCredential.credentialName
-                )
-            );
-
-            DeploymentCredentialController.CredentialWrapper targetCredential =
-
-                DeploymentCredentialController.getCredentialByEnvironment(
-                    targetEnvironmentId
-                );
-
-            results.add(
-                new ValidationResult(
-                    'Target Credential',
-                    'PASS',
-                    targetCredential.credentialName
-                )
-            );
-
-            MetadataAuthenticationService.generateAccessToken(
-                sourceCredential.credentialId
-            );
-
-            results.add(
-                new ValidationResult(
-                    'Source OAuth',
-                    'PASS',
-                    'Token Generated'
-                )
-            );
-
-            MetadataAuthenticationService.generateAccessToken(
-                targetCredential.credentialId
-            );
-
-            results.add(
-                new ValidationResult(
-                    'Target OAuth',
-                    'PASS',
-                    'Token Generated'
-                )
-            );
-        }
-        catch(Exception ex){
-
-            results.add(
-                new ValidationResult(
-                    'OAuth Validation',
-                    'FAIL',
-                    ex.getMessage()
-                )
-            );
+        try {
+            DeploymentRuntimeService.startDeployment(reqs[0].Id, 'Validate');
+            
+            results.add(new ValidationResult(
+                'ValidationRequest',
+                'PENDING',
+                String.valueOf(reqs[0].Id)
+            ));
+        } catch (Exception ex) {
+            throw new AuraHandledException(ex.getMessage());
         }
 
         return results;
