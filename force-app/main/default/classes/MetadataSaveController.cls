@@ -79,35 +79,47 @@ public with sharing class MetadataSaveController {
             insert newReq;
         }
 
-        Set<String> existingMetadata = new Set<String>();
-        for(User_Story_Metadata__c existingRecord : [
-            SELECT Metadata_API_Name__c
+        List<User_Story_Metadata__c> existingRecords = [
+            SELECT Id, Metadata_API_Name__c, Selected__c
             FROM User_Story_Metadata__c
             WHERE User_Story__c = :userStoryId
             AND Metadata_Type__c = :metadataType
-        ]){
-            existingMetadata.add(existingRecord.Metadata_API_Name__c);
-        }
+        ];
 
-        List<User_Story_Metadata__c> recordsToInsert = new List<User_Story_Metadata__c>();
-        for(String metadataName : metadataNames){
-            if(existingMetadata.contains(metadataName)){
-                continue;
+        Set<String> selectedNamesSet = new Set<String>(metadataNames);
+        Set<String> existingNamesSet = new Set<String>();
+        
+        List<User_Story_Metadata__c> recordsToUpdate = new List<User_Story_Metadata__c>();
+        
+        for (User_Story_Metadata__c rec : existingRecords) {
+            existingNamesSet.add(rec.Metadata_API_Name__c);
+            
+            Boolean shouldBeSelected = selectedNamesSet.contains(rec.Metadata_API_Name__c);
+            if (rec.Selected__c != shouldBeSelected) {
+                rec.Selected__c = shouldBeSelected;
+                recordsToUpdate.add(rec);
             }
-
-            User_Story_Metadata__c recordItem = new User_Story_Metadata__c();
-            recordItem.User_Story__c = userStoryId;
-            recordItem.Metadata_Type__c = metadataType;
-            recordItem.Metadata_API_Name__c = metadataName;
-            recordItem.Name = metadataName;
-            recordItem.Selected__c = true;
-            recordItem.Action__c = 'Add';
-            recordItem.File_Path__c = getFilePath(metadataType, metadataName);
-
-            recordsToInsert.add(recordItem);
         }
-
-        if(!recordsToInsert.isEmpty()){
+        
+        List<User_Story_Metadata__c> recordsToInsert = new List<User_Story_Metadata__c>();
+        for (String metadataName : metadataNames) {
+            if (!existingNamesSet.contains(metadataName)) {
+                User_Story_Metadata__c recordItem = new User_Story_Metadata__c();
+                recordItem.User_Story__c = userStoryId;
+                recordItem.Metadata_Type__c = metadataType;
+                recordItem.Metadata_API_Name__c = metadataName;
+                recordItem.Name = metadataName;
+                recordItem.Selected__c = true;
+                recordItem.Action__c = 'Add';
+                recordItem.File_Path__c = getFilePath(metadataType, metadataName);
+                recordsToInsert.add(recordItem);
+            }
+        }
+        
+        if (!recordsToUpdate.isEmpty()) {
+            update recordsToUpdate;
+        }
+        if (!recordsToInsert.isEmpty()) {
             insert recordsToInsert;
         }
     }

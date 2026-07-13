@@ -138,9 +138,9 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
 
         // Retrieve components associated with user story
         List<User_Story_Metadata__c> comps = [
-            SELECT Id, Metadata_API_Name__c, Metadata_Type__c, Action__c
+            SELECT Id, Metadata_API_Name__c, Metadata_Type__c, Action__c, Selected__c
             FROM User_Story_Metadata__c
-            WHERE User_Story__c = :req.User_Story__c
+            WHERE User_Story__c = :req.User_Story__c AND Selected__c = true
         ];
 
         if (comps.isEmpty()) {
@@ -940,10 +940,10 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         // Step 5: Poll ContainerAsyncRequest status
         String status = 'Queued';
         String errorMsg = '';
-        for (Integer i = 0; i < 30; i++) {
+        for (Integer i = 0; i < 60; i++) {
             // Wait 1 second
             Long start = System.now().getTime();
-            while (System.now().getTime() - start < 100) {}
+            while (System.now().getTime() - start < 1000) {}
             
             HttpRequest pollReq = new HttpRequest();
             pollReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest/' + compileRequestId);
@@ -1167,8 +1167,24 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 }
             }
             
-            // 5. Create or Update resources
+            // 5. Create or Update resources (Separate JS controllers to deploy them first)
+            List<Object> jsResources = new List<Object>();
+            List<Object> otherResources = new List<Object>();
             for (Object obj : srcRecords) {
+                Map<String, Object> srcRec = (Map<String, Object>) obj;
+                String filePath = (String) srcRec.get('FilePath');
+                if (filePath != null && filePath.endsWith('.js') && !filePath.endsWith('test.js')) {
+                    jsResources.add(obj);
+                } else {
+                    otherResources.add(obj);
+                }
+            }
+            
+            List<Object> sortedResources = new List<Object>();
+            sortedResources.addAll(jsResources);
+            sortedResources.addAll(otherResources);
+            
+            for (Object obj : sortedResources) {
                 Map<String, Object> srcRec = (Map<String, Object>) obj;
                 String filePath = (String) srcRec.get('FilePath');
                 String format = (String) srcRec.get('Format');
