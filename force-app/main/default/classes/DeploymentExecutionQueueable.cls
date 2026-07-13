@@ -1362,7 +1362,23 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             for (User_Story_Metadata__c comp : comps) {
                 Deployment_Component__c dc = new Deployment_Component__c();
                 dc.component_name__c = comp.Metadata_API_Name__c;
-                dc.component_type__c = comp.Metadata_Type__c;
+                
+                String pickType = comp.Metadata_Type__c;
+                if (pickType == 'ApexClass') {
+                    pickType = 'Apex Class';
+                } else if (pickType == 'ApexTrigger') {
+                    pickType = 'Apex Trigger';
+                } else if (pickType == 'CustomObject') {
+                    pickType = 'Custom Object';
+                } else if (pickType == 'CustomField') {
+                    pickType = 'Custom Field';
+                } else if (pickType == 'LightningComponentBundle' || pickType == 'AuraDefinitionBundle') {
+                    pickType = 'LWC';
+                } else {
+                    pickType = 'Apex Class'; // Default fallback that is valid in the picklist
+                }
+                
+                dc.component_type__c = pickType;
                 dc.deployment_request__c = requestId;
                 dc.selected__c = true;
                 deployedComps.add(dc);
