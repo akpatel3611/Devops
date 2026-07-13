@@ -615,20 +615,20 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             } else if (fieldType == 'Lookup') {
                 List<Schema.SObjectType> refTo = dfr.getReferenceTo();
                 if (!refTo.isEmpty()) {
-                    metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
-                    String relName = null;
-                    for (Schema.ChildRelationship cr : refTo[0].getDescribe().getChildRelationships()) {
-                        if (cr.getField() == dfr.getSObjectField()) {
-                            relName = cr.getRelationshipName();
-                            break;
-                        }
-                    }
-                    if (String.isNotBlank(relName)) {
-                        if (relName.endsWith('__r')) {
-                            relName = relName.removeEnd('__r');
-                        }
-                        metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
-                    }
+                     metadata.add('<met:referenceTo>' + refTo[0].getDescribe().getName() + '</met:referenceTo>');
+                     String relName = null;
+                     for (Schema.ChildRelationship cr : refTo[0].getDescribe().getChildRelationships()) {
+                         if (cr.getField() == dfr.getSObjectField()) {
+                             relName = cr.getRelationshipName();
+                             break;
+                         }
+                     }
+                     if (String.isNotBlank(relName)) {
+                         if (relName.endsWith('__r')) {
+                             relName = relName.removeEnd('__r');
+                         }
+                         metadata.add('<met:relationshipName>' + relName + '</met:relationshipName>');
+                     }
                 }
             } else if (fieldType == 'Picklist' || fieldType == 'MultiselectPicklist') {
                 metadata.add('<met:valueSet>');
@@ -918,7 +918,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         for (Integer i = 0; i < 30; i++) {
             // Wait 1 second
             Long start = System.now().getTime();
-            while (System.now().getTime() - start < 1000) {}
+            while (System.now().getTime() - start < 100) {}
             
             HttpRequest pollReq = new HttpRequest();
             pollReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ContainerAsyncRequest/' + compileRequestId);
