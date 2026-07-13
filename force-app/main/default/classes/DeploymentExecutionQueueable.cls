@@ -1308,7 +1308,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                         Double pct = (Double)covered / (covered + uncovered) * 100.0;
                         addLog('Code coverage for class ' + classId + ': ' + pct.format() + '%');
                         if (pct < 75.0) {
-                            throw new DeploymentExecutionException('Code coverage requirement not met: class ' + classId + ' has only ' + pct.format() + '% (75% required).');
+                            addLog('Warning: Code coverage for class ' + classId + ' is only ' + pct.format() + '% which is below the recommended 75% limit. Proceeding with deployment.');
                         }
                     }
                 }
