@@ -921,7 +921,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 
                 Map<String, Object> payload = new Map<String, Object>();
                 payload.put('Name', name);
-                payload.put('Body', 'public class ' + name + ' {}');
+                payload.put('Body', generateStubBody(name, localClassBodies.get(name.toLowerCase())));
                 createReq.setBody(JSON.serialize(payload));
                 
                 addLog('Creating shell stub for ApexClass ' + name + '...');
@@ -1326,6 +1326,49 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
         } catch (Exception ex) {}
         return body;
+    }
+
+    private String generateStubBody(String className, String fullBody) {
+        if (String.isBlank(fullBody)) {
+            return 'public class ' + className + ' {}';
+        }
+        
+        // Clean up comments to avoid matching commented-out annotations
+        String cleanBody = fullBody.replaceAll('//.*', '').replaceAll('/\\*.*?\\*/', '');
+        
+        List<String> stubMethods = new List<String>();
+        
+        // Match @AuraEnabled methods up to static [ReturnType] [MethodName] ( [Params] )
+        Pattern p = Pattern.compile('(?i)@AuraEnabled[^;]*?\\s+static\\s+([^\\(]+)\\s*\\(([^\\)]*)\\)');
+        Matcher m = p.matcher(cleanBody);
+        
+        while (m.find()) {
+            String returnAndName = m.group(1).trim();
+            String params = m.group(2);
+            
+            // Extract method name (last word) and return type (everything before)
+            Integer lastSpace = returnAndName.lastIndexOf(' ');
+            if (lastSpace == -1) continue;
+            
+            String returnType = returnAndName.substring(0, lastSpace).trim();
+            String methodName = returnAndName.substring(lastSpace + 1).trim();
+            
+            String methodStub = '    @AuraEnabled\n    public static ' + returnType + ' ' + methodName + '(' + params + ') {\n';
+            if (returnType.equalsIgnoreCase('void')) {
+                methodStub += '        return;\n';
+            } else {
+                methodStub += '        return null;\n';
+            }
+            methodStub += '    }';
+            stubMethods.add(methodStub);
+        }
+        
+        String stub = 'public class ' + className + ' {\n';
+        if (!stubMethods.isEmpty()) {
+            stub += String.join(stubMethods, '\n\n') + '\n';
+        }
+        stub += '}';
+        return stub;
     }
 
     /**
