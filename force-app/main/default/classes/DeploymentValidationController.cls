@@ -39,7 +39,7 @@ public with sharing class DeploymentValidationController {
             SELECT Id FROM Deployment_Request__c
             WHERE Source_Environment__c = :sourceEnvironmentId
               AND Target_Environment__c = :targetEnvironmentId
-              AND Status__c = 'Draft'
+              AND Status__c IN ('Draft', 'Failed', 'Validated')
             ORDER BY CreatedDate DESC
             LIMIT 1
         ];
