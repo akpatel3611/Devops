@@ -954,6 +954,22 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                         throw new DeploymentExecutionException('Failed to create ApexClass stub for ' + name + ': ' + err);
                     }
                 }
+            } else {
+                addLog('Updating existing target ApexClass ' + name + ' stub to match new @AuraEnabled signatures...');
+                HttpRequest updateReq = new HttpRequest();
+                updateReq.setEndpoint(targetUrl + '/services/data/v60.0/tooling/sobjects/ApexClass/' + classId);
+                updateReq.setMethod('PATCH');
+                updateReq.setHeader('Authorization', 'Bearer ' + targetToken);
+                updateReq.setHeader('Content-Type', 'application/json');
+                
+                Map<String, Object> payload = new Map<String, Object>();
+                payload.put('Body', generateStubBody(name, localClassBodies.get(name.toLowerCase())));
+                updateReq.setBody(JSON.serialize(payload));
+                
+                HttpResponse updateRes = h.send(updateReq);
+                if (updateRes.getStatusCode() != 204 && updateRes.getStatusCode() != 200) {
+                    addLog('Warning: Failed to update target ApexClass ' + name + ' stub: ' + updateRes.getBody());
+                }
             }
         }
 
