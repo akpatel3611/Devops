@@ -2040,6 +2040,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 deployReq.setHeader('Content-Type', 'application/json');
                 
                 Map<String, Object> payload = new Map<String, Object>();
+                System.debug('Preparing payload for component ' + name + ': ' + markup);
                 payload.put('Name', name);
                 payload.put('MasterLabel', label);
                 payload.put('Markup', markup);
