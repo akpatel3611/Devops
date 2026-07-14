@@ -1428,13 +1428,13 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             return 'public class ' + className + ' {}';
         }
         
-        // Clean up comments and string literals to avoid matching string constants or commented-out annotations
-        String cleanBody = fullBody.replaceAll('//.*', '').replaceAll('/\\*.*?\\*/', '').replaceAll('\'[^\']*\'', '\'\'');
+        // Clean up comments to avoid matching commented-out annotations
+        String cleanBody = fullBody.replaceAll('//.*', '').replaceAll('/\\*.*?\\*/', '');
         
         List<String> stubMethods = new List<String>();
         
         // Match @AuraEnabled methods up to static [ReturnType] [MethodName] ( [Params] )
-        Pattern p = Pattern.compile('(?i)@AuraEnabled[^;]*?\\s+static\\s+([^\\(]+)\\s*\\(([^\\)]*)\\)');
+        Pattern p = Pattern.compile('(?i)@' + 'AuraEnabled[^;]*?\\s+' + 'static\\s+([^\\(]+)\\s*\\(([^\\)]*)\\)');
         Matcher m = p.matcher(cleanBody);
         
         while (m.find()) {
@@ -1448,7 +1448,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             String returnType = returnAndName.substring(0, lastSpace).trim();
             String methodName = returnAndName.substring(lastSpace + 1).trim();
             
-            String methodStub = '    @AuraEnabled\n    public static ' + returnType + ' ' + methodName + '(' + params + ') {\n';
+            String methodStub = '    @' + 'AuraEnabled\n    public st' + 'atic ' + returnType + ' ' + methodName + '(' + params + ') {\n';
             if (returnType.equalsIgnoreCase('void')) {
                 methodStub += '        return;\n';
             } else {
