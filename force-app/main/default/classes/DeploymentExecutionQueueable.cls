@@ -1473,29 +1473,42 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
         String finalStatus = (actionType == 'Validate') ? 'Validated' : 'Completed';
         
         Deployment_Request__c req = [
-            SELECT Id, User_Story__c, User_Story__r.Feature_Branch__c, Target_Environment__r.Name
+            SELECT Id, User_Story__c, User_Story__r.Feature_Branch__c, 
+                   User_Story__r.Story_Number__c, User_Story__r.Title__c,
+                   Source_Environment__c, Target_Environment__c,
+                   Target_Environment__r.Name, Pipeline__c
             FROM Deployment_Request__c 
             WHERE Id = :requestId 
             LIMIT 1
         ];
 
-        // 1. Perform all Callouts FIRST (before any DML to prevent uncommitted work pending exception)
-        if (finalStatus == 'Completed') {
-            if (req.User_Story__c != null && String.isNotBlank(req.User_Story__r.Feature_Branch__c) && req.Target_Environment__r.Name != null) {
-                String targetBranch = req.Target_Environment__r.Name.toLowerCase().replaceAll('[^a-zA-Z0-9]', '');
-                syncGitBranches(req.User_Story__r.Feature_Branch__c, targetBranch, req.User_Story__c);
+        // 1. Perform all Callouts FIRST (before any DML)
+        // FIX: Always create feature branch on GitHub using feature/US-XXXXX pattern (not target env name)
+        if (finalStatus == 'Completed' && req.User_Story__c != null) {
+            String featureBranch = req.User_Story__r.Feature_Branch__c;
+            // If feature branch is blank, generate from story number
+            if (String.isBlank(featureBranch)) {
+                String identifier = String.isNotBlank(req.User_Story__r.Story_Number__c)
+                    ? req.User_Story__r.Story_Number__c : String.valueOf(req.User_Story__c);
+                featureBranch = 'feature/' + identifier;
             }
+            // Create/sync the feature branch on GitHub (NOT target env branch)
+            syncGitBranches(featureBranch, featureBranch, req.User_Story__c);
         }
 
         // 2. Perform DML operations
         DeploymentExecutionHelper.applyRuntimeState(requestId, finalStatus, null, System.now(), this.resolvedCredentialId);
         
         if (finalStatus == 'Completed') {
-            List<User_Story_Metadata__c> comps = [
-                SELECT Metadata_API_Name__c, Metadata_Type__c 
-                FROM User_Story_Metadata__c 
-                WHERE User_Story__c = :req.User_Story__c AND Selected__c = true
-            ];
+            // 2a. Insert Deployment Components from User Story Metadata
+            List<User_Story_Metadata__c> comps = new List<User_Story_Metadata__c>();
+            if (req.User_Story__c != null) {
+                comps = [
+                    SELECT Metadata_API_Name__c, Metadata_Type__c 
+                    FROM User_Story_Metadata__c 
+                    WHERE User_Story__c = :req.User_Story__c AND Selected__c = true
+                ];
+            }
             List<Deployment_Component__c> deployedComps = new List<Deployment_Component__c>();
             for (User_Story_Metadata__c comp : comps) {
                 Deployment_Component__c dc = new Deployment_Component__c();
@@ -1513,7 +1526,7 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
                 } else if (pickType == 'LightningComponentBundle' || pickType == 'AuraDefinitionBundle') {
                     pickType = 'LWC';
                 } else {
-                    pickType = 'Apex Class'; // Default fallback that is valid in the picklist
+                    pickType = 'Apex Class';
                 }
                 
                 dc.component_type__c = pickType;
@@ -1523,6 +1536,11 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             }
             if (!deployedComps.isEmpty()) {
                 insert deployedComps;
+            }
+
+            // 2b. AUTO-CREATE Promotion__c record and link to User Story + Deployment Request
+            if (req.User_Story__c != null) {
+                createPromotionAndLink(req);
             }
         }
 
@@ -1546,6 +1564,69 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
 
         if (!logsToInsert.isEmpty()) {
             insert logsToInsert;
+        }
+    }
+
+    /**
+     * Creates a Promotion__c record on deployment success and links:
+     * Promotion → User Story (via User_Story__c.Promotion__c lookup)
+     * Deployment Request → Promotion (via Deployment_Request__c.Promotion__c lookup)
+     * User Story → User Story Metadata (already linked via User_Story_Metadata__c.User_Story__c)
+     */
+    private void createPromotionAndLink(Deployment_Request__c req) {
+        try {
+            // Generate promotion name
+            Integer existingCount = [SELECT COUNT() FROM Promotion__c];
+            String promoName = 'P' + String.valueOf(existingCount + 1).leftPad(5, '0');
+
+            // Create the Promotion record
+            Promotion__c promo = new Promotion__c();
+            promo.Promotion_Name__c = promoName;
+            promo.Status__c = 'Completed';
+            promo.Promotion_Date__c = System.now();
+            promo.Triggered_By__c = UserInfo.getName();
+            
+            if (req.Source_Environment__c != null) {
+                promo.Source_Environment__c = req.Source_Environment__c;
+            }
+            if (req.Target_Environment__c != null) {
+                promo.Target_Environment__c = req.Target_Environment__c;
+            }
+            if (req.Pipeline__c != null) {
+                promo.Pipeline__c = req.Pipeline__c;
+            }
+            
+            String description = 'Auto-created on successful deployment';
+            if (String.isNotBlank(req.User_Story__r.Title__c)) {
+                description += ' - ' + req.User_Story__r.Title__c;
+            }
+            promo.Description__c = description;
+            
+            insert promo;
+            addLog('Promotion record ' + promoName + ' created successfully.');
+
+            // Link User Story → Promotion
+            User_Story__c storyUpdate = new User_Story__c(Id = req.User_Story__c);
+            storyUpdate.Promotion__c = promo.Id;
+            update storyUpdate;
+            addLog('User Story linked to Promotion ' + promoName + '.');
+
+            // Link Deployment Request → Promotion
+            Deployment_Request__c dreqUpdate = new Deployment_Request__c(Id = requestId);
+            dreqUpdate.Promotion__c = promo.Id;
+            // Also store the feature branch name on the deployment request
+            String branchName = req.User_Story__r.Feature_Branch__c;
+            if (String.isBlank(branchName)) {
+                String identifier = String.isNotBlank(req.User_Story__r.Story_Number__c)
+                    ? req.User_Story__r.Story_Number__c : String.valueOf(req.User_Story__c);
+                branchName = 'feature/' + identifier;
+            }
+            dreqUpdate.Branch_Name__c = branchName;
+            update dreqUpdate;
+            addLog('Deployment Request linked to Promotion ' + promoName + '.');
+
+        } catch (Exception ex) {
+            addLog('Warning: Failed to create Promotion record: ' + ex.getMessage());
         }
     }
 
