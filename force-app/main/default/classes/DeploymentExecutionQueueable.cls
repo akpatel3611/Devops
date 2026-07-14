@@ -1428,8 +1428,8 @@ public with sharing class DeploymentExecutionQueueable implements Queueable, Dat
             return 'public class ' + className + ' {}';
         }
         
-        // Clean up comments to avoid matching commented-out annotations
-        String cleanBody = fullBody.replaceAll('//.*', '').replaceAll('/\\*.*?\\*/', '');
+        // Clean up comments and string literals to avoid matching string constants or commented-out annotations
+        String cleanBody = fullBody.replaceAll('//.*', '').replaceAll('/\\*.*?\\*/', '').replaceAll('\'[^\']*\'', '\'\'');
         
         List<String> stubMethods = new List<String>();
         
