@@ -6,6 +6,7 @@ export default class Test extends LightningElement {
     connectedCallback() {
         // No initialization needed for inputValue in connectedCallback
     }
+    // No additional methods or logic needed here
     handleInputChange(event) {
         this.inputValue = event.target.value;
     }
