@@ -37,6 +37,10 @@ export default class TaskStatusChangerDrager extends LightningElement {
         { name: 'Completed', label: 'Completed' }
     ];
 
+    connectedCallback() {
+        // Initialization logic if needed
+    }
+
     @wire(getLatestTask)
     wiredOpps(result) {
         this.wiredResult = result;
