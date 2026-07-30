@@ -39,6 +39,10 @@ export default class TaskStatusChangerDrager extends LightningElement {
 
     connectedCallback() {
         // Initialization logic if needed
+        // 
+    }
+    disconnectedCallback() {
+        // Cleanup logic if needed
     }
 
     @wire(getLatestTask)
