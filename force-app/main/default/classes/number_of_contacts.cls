@@ -1,0 +1,1 @@
+/* Simulated metadata content for number_of_contacts (ApexClass) */

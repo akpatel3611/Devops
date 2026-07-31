@@ -1,0 +1,1 @@
+/* Simulated metadata content for account (ApexClass) */
