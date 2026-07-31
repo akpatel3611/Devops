@@ -15,6 +15,7 @@ export default class CryptoTracker extends LightningElement {
 
     connectedCallback() {
         this.fetchPrices(); // Page load pe hi data fetch karo
+        // PR and Validation test 1
     }
 
     async fetchPrices() {
