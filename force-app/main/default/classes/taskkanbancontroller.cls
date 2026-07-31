@@ -1,4 +1,5 @@
 public with sharing class TaskKanBanController {
+    // TaskKanBanController
     @AuraEnabled(cacheable=true)
     public static List<Task> getLatestTask(){
         return [
