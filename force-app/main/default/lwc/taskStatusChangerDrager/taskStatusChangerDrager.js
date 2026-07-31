@@ -39,13 +39,13 @@ export default class TaskStatusChangerDrager extends LightningElement {
 
     connectedCallback() {
         // Initialization logic if needed
+        //PR and Validation Test 1
     }
     disconnectedCallback() {
         // Cleanup logic if needed
     }
 
     rendercallback(){
-        // cleanup logic. only for testing
         // cleanup logic. only for testing
     }
 
