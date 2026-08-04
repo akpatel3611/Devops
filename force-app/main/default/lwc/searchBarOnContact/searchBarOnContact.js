@@ -10,6 +10,11 @@ export default class SearchBarOnContact extends LightningElement {
     @track isLoadingDetails = false; // new tracker
     timeout;
 
+    connectedCallback() {
+        // Initial setup if needed
+        // For example, you could fetch some default contacts or set up any necessary state here.
+    }
+
     handleSearch(event) {
         clearTimeout(this.timeout);
         this.searchKey = event.target.value;
