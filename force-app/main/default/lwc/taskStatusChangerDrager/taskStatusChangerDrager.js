@@ -49,6 +49,9 @@ export default class TaskStatusChangerDrager extends LightningElement {
         // cleanup logic. only for testing
     }
 
+    disconnectedCallback() {
+        // Cleanup logic if needed
+    }
     @wire(getLatestTask)
     wiredOpps(result) {
         this.wiredResult = result;
