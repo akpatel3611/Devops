@@ -15,7 +15,19 @@ export default class CreateMultiContact extends NavigationMixin(LightningElement
         { label: 'Email', fieldName: 'Email', type: 'email', editable: true },
         { label: 'Phone', fieldName: 'Phone', type: 'phone', editable: true }
     ];
-
+    
+    connectedCallback() {
+        // Initialize with one empty contact form
+        this.contactList = [this.createEmptyContact()];
+    }
+     // Reset state when component is removed from DOM
+    disconnectedCallback() {
+        // Reset state when component is removed from DOM
+        this.contactList = [this.createEmptyContact()];
+        this.createdContacts = [];
+        this.isLoading = false;
+        this.showTable = false;
+    }
     // Add new contact form
     createEmptyContact() {
         return {
