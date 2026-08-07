@@ -14,5 +14,9 @@ export default class Cicddemo extends LightningElement {
 
     disconnectedCallback() {
         console.log('cicddemo component unloaded');
+    } 
+
+    renderedCallback() {
+        console.log('cicddemo component rendered');
     }
 }
