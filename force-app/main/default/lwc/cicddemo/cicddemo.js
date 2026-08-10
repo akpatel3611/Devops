@@ -1,6 +1,11 @@
 import { LightningElement } from 'lwc';
 import cicddemocontroller from '@salesforce/apex/cicddemocontroller.CICDDemoController';
 export default class Cicddemo extends LightningElement {
+    // deprecated lifecycle hooks
+    // constructor() {
+    //     super();
+    //     console.log('cicddemo component initialized');
+    // }
     connectedCallback() {
         console.log('cicddemo component loaded');
         cicddemocontroller()
@@ -12,6 +17,8 @@ export default class Cicddemo extends LightningElement {
             });
     }
 
+    // full deployment test
+
     disconnectedCallback() {
         console.log('cicddemo component unloaded');
     } 
@@ -19,4 +26,5 @@ export default class Cicddemo extends LightningElement {
     renderedCallback() {
         console.log('cicddemo component rendered');
     }
+    
 }
