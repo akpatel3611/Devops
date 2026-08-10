@@ -16,6 +16,10 @@ export default class BikeCard extends LightningElement {
     }
     // No additional methods or logic needed here
     //console.log('BikeCard component disconnected');
+    //Pr and validation Tst 1
+    // Full Test deployment
+    // full deployment test
+
     bike = {
         name: 'Trail Blazer',
         type: 'Mountain',
