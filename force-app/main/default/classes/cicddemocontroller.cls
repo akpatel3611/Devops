@@ -3,5 +3,6 @@ public with sharing class cicddemocontroller {
     public static void CICDDemoController() {
             System.debug('cicddemocontroller constructor called');
             system.debug('deployment testing');
+            System.debug('UserStory2_Dev_Conflicting_Code_Line6');
     }
 }
