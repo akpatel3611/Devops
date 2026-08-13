@@ -1,11 +1,13 @@
 import { LightningElement, api, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import getRealtimeOrgErrors from '@salesforce/apex/DevOpsSystemErrorScannerController.getRealtimeOrgErrors';
 import { DevOpsGlobalErrorInterceptor } from 'c/devOpsGlobalErrorInterceptor';
 
 const DEBUG_PREFIX = '[devOpsErrorInspectorTerminal]';
 
-export default class DevOpsErrorInspectorTerminal extends LightningElement {
+export default class DevOpsErrorInspectorTerminal extends NavigationMixin(LightningElement) {
     @api recordId;
+    @api isStandalonePage = false; // Set to true when placed as a standalone Custom Tab page
 
     @track isTerminalOpen = false;
     @track isLoadingScan = false;
@@ -16,7 +18,13 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
     _pollingTimer = null;
 
     connectedCallback() {
-        console.log(`${DEBUG_PREFIX} [connectedCallback] Initializing real-time error scanner terminal...`);
+        console.log(`${DEBUG_PREFIX} [connectedCallback] Initializing real-time error scanner. isStandalonePage:`, this.isStandalonePage);
+        
+        // If loaded as a standalone tab, open terminal immediately in full page view
+        if (this.isStandalonePage) {
+            this.isTerminalOpen = true;
+        }
+
         // Subscribe to client-side browser exception interceptor
         DevOpsGlobalErrorInterceptor.subscribe((browserErrorObj) => {
             console.log(`${DEBUG_PREFIX} [InterceptorCallback] Captured browser exception:`, browserErrorObj);
@@ -26,10 +34,10 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
         // Run initial server-side scan
         this.runRealtimeServerScan();
 
-        // Start background polling for org async jobs & deployment errors (every 10 seconds)
+        // Start background polling (every 8 seconds)
         this._pollingTimer = setInterval(() => {
             this.runRealtimeServerScan();
-        }, 10000);
+        }, 8000);
     }
 
     disconnectedCallback() {
@@ -64,7 +72,6 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
                 ...logObj,
                 severityBadgeClass: this.getSeverityBadgeClass(logObj.severity)
             };
-            // Prepend new errors to top
             this.errorLogs = [formattedLog, ...this.errorLogs];
             console.log(`${DEBUG_PREFIX} [appendUniqueErrorLog] Added log entry: ${logObj.id} | Total count: ${this.errorLogs.length}`);
         }
@@ -84,7 +91,6 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
         }
     }
 
-    // Public API method so external components can explicitly push errors to this terminal
     @api
     logCustomError(source, severity, componentName, methodName, rawMessage, stackTrace, rootCause, fix) {
         console.log(`${DEBUG_PREFIX} [logCustomError] Custom error pushed from component:`, componentName);
@@ -101,11 +107,9 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
             timestamp: new Date().toLocaleTimeString()
         };
         this.appendUniqueErrorLog(errObj);
-        // Automatically pop open badge alert
         this.isTerminalOpen = true;
     }
 
-    // Getters for counts and UI states
     get totalErrorCount() {
         return this.errorLogs.length;
     }
@@ -129,7 +133,6 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
     get filteredErrorLogs() {
         let logs = [...this.errorLogs];
 
-        // Apply Tab Source Filter
         if (this.activeTab === 'ORG') {
             logs = logs.filter(item => item.source === 'ORG' || item.source === 'LIMITS');
         } else if (this.activeTab === 'BROWSER') {
@@ -138,7 +141,6 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
             logs = logs.filter(item => item.source === 'DEPLOYMENT');
         }
 
-        // Apply Search Filter Key
         if (this.searchFilterKey && this.searchFilterKey.trim() !== '') {
             const key = this.searchFilterKey.toLowerCase().trim();
             logs = logs.filter(item =>
@@ -164,20 +166,20 @@ export default class DevOpsErrorInspectorTerminal extends LightningElement {
         return this.hasActiveErrors ? 'floating-terminal-btn btn-alert-active' : 'floating-terminal-btn btn-idle';
     }
 
-    // Tab Classes
     get tabAllClass() { return this.activeTab === 'ALL' ? 'tab-btn tab-active' : 'tab-btn'; }
     get tabOrgClass() { return this.activeTab === 'ORG' ? 'tab-btn tab-active' : 'tab-btn'; }
     get tabBrowserClass() { return this.activeTab === 'BROWSER' ? 'tab-btn tab-active' : 'tab-btn'; }
     get tabDeploymentClass() { return this.activeTab === 'DEPLOYMENT' ? 'tab-btn tab-active' : 'tab-btn'; }
 
-    // Handlers
     handleOpenTerminal() {
         this.isTerminalOpen = true;
         this.runRealtimeServerScan();
     }
 
     handleCloseTerminal() {
-        this.isTerminalOpen = false;
+        if (!this.isStandalonePage) {
+            this.isTerminalOpen = false;
+        }
     }
 
     handleSelectTabAll() { this.activeTab = 'ALL'; }
