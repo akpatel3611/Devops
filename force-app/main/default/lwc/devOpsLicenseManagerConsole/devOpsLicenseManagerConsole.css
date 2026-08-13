@@ -1,0 +1,145 @@
+.license-console-container {
+    background-color: #0b1120;
+    min-height: 100vh;
+    color: #e2e8f0;
+}
+
+.console-header-card {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border-radius: 12px;
+    border: 1px solid #334155;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.header-icon-badge {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    padding: 12px;
+    border-radius: 10px;
+    display: inline-flex;
+}
+
+.console-main-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+}
+
+.console-sub-title {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.refresh-btn {
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* Metric Cards */
+.metric-card {
+    border-radius: 10px;
+    padding: 18px;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease-in-out;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.card-blue { background: linear-gradient(135deg, #0f172a, #1e3a8a); border-color: #1d4ed8; }
+.card-orange { background: linear-gradient(135deg, #0f172a, #7c2d12); border-color: #ea580c; }
+.card-green { background: linear-gradient(135deg, #0f172a, #064e3b); border-color: #16a34a; }
+.card-slate { background: linear-gradient(135deg, #0f172a, #334155); border-color: #475569; }
+
+.metric-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #cbd5e1;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 900;
+    color: #ffffff;
+    margin-top: 6px;
+}
+
+.metric-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+/* Table Card */
+.table-card {
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.table-title h2 {
+    color: #f8fafc;
+}
+
+.search-input-box {
+    width: 320px;
+}
+
+.custom-user-table {
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
+}
+
+.custom-user-table th {
+    background-color: #020617 !important;
+    color: #94a3b8 !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+.custom-user-table td {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-bottom: 1px solid #1e293b !important;
+    font-size: 13px !important;
+}
+
+.user-name-link {
+    color: #38bdf8 !important;
+}
+
+.tier-pill {
+    background-color: #1e293b;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.status-active {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid #22c55e;
+}
+
+.status-inactive {
+    background-color: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid #475569;
+}
