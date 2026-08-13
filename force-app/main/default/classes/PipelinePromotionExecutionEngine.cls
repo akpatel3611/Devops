@@ -50,7 +50,9 @@ public with sharing class PipelinePromotionExecutionEngine {
      * Loads pipeline stages, sets the first active stage, transitions to Executing.
      */
     public static EngineResult startPromotion(Id promotionId) {
+        System.debug(LoggingLevel.INFO, '[PipelinePromotionExecutionEngine.startPromotion] START - promotionId: ' + promotionId);
         if (promotionId == null) {
+            System.debug(LoggingLevel.WARN, '[PipelinePromotionExecutionEngine.startPromotion] Warning: promotionId is null.');
             throw new PipelinePromotionExecutionException('Promotion ID cannot be null.');
         }
 
@@ -64,8 +66,11 @@ public with sharing class PipelinePromotionExecutionEngine {
                 LIMIT 1
             ];
 
+            System.debug(LoggingLevel.DEBUG, '[PipelinePromotionExecutionEngine.startPromotion] Loaded promotion - Status: ' + prom.Status__c + ' | Pipeline: ' + prom.Pipeline__c);
+
             // Validate current status allows starting
             if (prom.Status__c != STATUS_DRAFT && prom.Status__c != STATUS_READY) {
+                System.debug(LoggingLevel.WARN, '[PipelinePromotionExecutionEngine.startPromotion] Invalid status transition attempt from: ' + prom.Status__c);
                 EngineResult errResult = createDefaultResult();
                 errResult.message = 'Promotion can only be started from Draft or Ready status. Current status: ' + prom.Status__c;
                 errResult.errors.add(errResult.message);
@@ -74,6 +79,7 @@ public with sharing class PipelinePromotionExecutionEngine {
             }
 
             if (prom.Pipeline__c == null) {
+                System.debug(LoggingLevel.WARN, '[PipelinePromotionExecutionEngine.startPromotion] Pipeline is null on promotion.');
                 throw new PipelinePromotionExecutionException('Promotion has no Pipeline assigned.');
             }
 
@@ -86,22 +92,39 @@ public with sharing class PipelinePromotionExecutionEngine {
                 ORDER BY Stage_Order__c ASC
             ];
 
+            System.debug(LoggingLevel.DEBUG, '[PipelinePromotionExecutionEngine.startPromotion] Loaded ' + stages.size() + ' active pipeline stages.');
+
             if (stages.isEmpty()) {
+                System.debug(LoggingLevel.WARN, '[PipelinePromotionExecutionEngine.startPromotion] No active stages found for pipeline ID: ' + prom.Pipeline__c);
                 throw new PipelinePromotionExecutionException('No active stages found for the assigned Pipeline.');
             }
 
             // Set first stage and transition to Executing
             Stage__c firstStage = stages[0];
+            System.debug(LoggingLevel.FINE, '[PipelinePromotionExecutionEngine.startPromotion] First stage resolved - Name: ' + firstStage.Name + ' | Order: ' + firstStage.Stage_Order__c);
             prom.Current_Stage__c = firstStage.Id;
             update prom;
             PromotionRuntimeService.transitionPromotionStatus(promotionId, STATUS_EXECUTING);
+            System.debug(LoggingLevel.INFO, '[PipelinePromotionExecutionEngine.startPromotion] Transitioned to Executing status. Executing current stage...');
 
             // Execute the first stage
-            return executeCurrentStage(promotionId);
+            try {
+                return executeCurrentStage(promotionId);
+            } catch (Exception stageEx) {
+                System.debug(LoggingLevel.ERROR, '[PipelinePromotionExecutionEngine.startPromotion] Exception in executeCurrentStage: ' + stageEx.getMessage());
+                try {
+                    PromotionRuntimeService.transitionPromotionStatus(promotionId, STATUS_FAILED);
+                } catch (Exception failEx) {
+                    System.debug(LoggingLevel.ERROR, '[PipelinePromotionExecutionEngine.startPromotion] Failed to transition promotion to Failed: ' + failEx.getMessage());
+                }
+                throw stageEx;
+            }
 
         } catch (PipelinePromotionExecutionException ex) {
+            System.debug(LoggingLevel.ERROR, '[PipelinePromotionExecutionEngine.startPromotion] Engine Exception: ' + ex.getMessage());
             throw ex;
         } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[PipelinePromotionExecutionEngine.startPromotion] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             throw new PipelinePromotionExecutionException('Failed to start promotion: ' + ex.getMessage(), ex);
         }
     }
@@ -221,7 +244,16 @@ public with sharing class PipelinePromotionExecutionEngine {
             PromotionRuntimeService.transitionPromotionStatus(promotionId, STATUS_EXECUTING);
 
             // Execute the next stage
-            return executeCurrentStage(promotionId);
+            try {
+                return executeCurrentStage(promotionId);
+            } catch (Exception stageEx) {
+                try {
+                    PromotionRuntimeService.transitionPromotionStatus(promotionId, STATUS_FAILED);
+                } catch (Exception failEx) {
+                    System.debug(LoggingLevel.ERROR, 'Failed to transition promotion to Failed: ' + failEx.getMessage());
+                }
+                throw stageEx;
+            }
 
         } catch (PipelinePromotionExecutionException ex) {
             throw ex;
@@ -351,6 +383,17 @@ public with sharing class PipelinePromotionExecutionEngine {
         dr.Target_Environment__c = stage.Target_Environment__c;
         dr.Promotion__c = prom.Id;
         dr.Status__c = 'Draft';
+        
+        List<User_Story__c> stories = [
+            SELECT Id 
+            FROM User_Story__c 
+            WHERE Promotion__c = :prom.Id 
+            LIMIT 1
+        ];
+        if (!stories.isEmpty()) {
+            dr.User_Story__c = stories[0].Id;
+        }
+        
         insert dr;
 
         // Update promotion tracking

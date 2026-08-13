@@ -53,34 +53,37 @@ public with sharing class PromotionRuntimeService {
         String description,
         Id releaseId
     ) {
-        ValidationResult valRes = validateCreate(name, pipelineId, sourceEnvId, targetEnvId);
-        if (!valRes.success) {
-            PromotionResult errResult = createDefaultResult();
-            errResult.message = valRes.message;
-            errResult.errors = valRes.errors;
-            return errResult;
-        }
-
-        // Verify duplicate promotion does not exist (Change 1)
-        List<Promotion__c> duplicates = [
-            SELECT Id 
-            FROM Promotion__c 
-            WHERE (Promotion_Name__c = :name)
-               OR (Pipeline__c = :pipelineId 
-                   AND Source_Environment__c = :sourceEnvId 
-                   AND Target_Environment__c = :targetEnvId 
-                   AND Release__c = :releaseId
-                   AND Status__c NOT IN ('Completed', 'Failed', 'Cancelled'))
-            LIMIT 1
-        ];
-        if (!duplicates.isEmpty()) {
-            PromotionResult errResult = createDefaultResult();
-            errResult.message = 'A duplicate promotion already exists with the same name or active environment routing.';
-            errResult.errors.add('A duplicate promotion already exists with the same name or active environment routing.');
-            return errResult;
-        }
-
+        System.debug(LoggingLevel.INFO, '[PromotionRuntimeService.createPromotion] START - name: ' + name + ' | pipelineId: ' + pipelineId);
         try {
+            ValidationResult valRes = validateCreate(name, pipelineId, sourceEnvId, targetEnvId);
+            if (!valRes.success) {
+                System.debug(LoggingLevel.WARN, '[PromotionRuntimeService.createPromotion] Validation failed: ' + valRes.message);
+                PromotionResult errResult = createDefaultResult();
+                errResult.message = valRes.message;
+                errResult.errors = valRes.errors;
+                return errResult;
+            }
+
+            // Verify duplicate promotion does not exist (Change 1)
+            List<Promotion__c> duplicates = [
+                SELECT Id 
+                FROM Promotion__c 
+                WHERE (Promotion_Name__c = :name)
+                   OR (Pipeline__c = :pipelineId 
+                       AND Source_Environment__c = :sourceEnvId 
+                       AND Target_Environment__c = :targetEnvId 
+                       AND Release__c = :releaseId
+                       AND Status__c NOT IN ('Completed', 'Failed', 'Cancelled'))
+                LIMIT 1
+            ];
+            if (!duplicates.isEmpty()) {
+                System.debug(LoggingLevel.WARN, '[PromotionRuntimeService.createPromotion] Duplicate promotion found.');
+                PromotionResult errResult = createDefaultResult();
+                errResult.message = 'A duplicate promotion already exists with the same name or active environment routing.';
+                errResult.errors.add('A duplicate promotion already exists with the same name or active environment routing.');
+                return errResult;
+            }
+
             Promotion__c prom = new Promotion__c();
             prom.Promotion_Name__c = name;
             prom.Pipeline__c = pipelineId;
@@ -93,6 +96,7 @@ public with sharing class PromotionRuntimeService {
             
             insert prom;
 
+            System.debug(LoggingLevel.INFO, '[PromotionRuntimeService.createPromotion] SUCCESS - Promotion created with Id: ' + prom.Id);
             PromotionResult result = createDefaultResult();
             result.success = true;
             result.message = 'Promotion registered successfully in Draft status.';
@@ -100,7 +104,11 @@ public with sharing class PromotionRuntimeService {
             result.status = STATUS_DRAFT;
             return result;
         } catch (Exception ex) {
-            throw new PromotionRuntimeServiceException('Failed to create promotion: ' + ex.getMessage(), ex);
+            System.debug(LoggingLevel.ERROR, '[PromotionRuntimeService.createPromotion] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            PromotionResult errResult = createDefaultResult();
+            errResult.message = ex.getMessage();
+            errResult.errors.add(ex.getMessage());
+            return errResult;
         }
     }
 
@@ -273,11 +281,11 @@ public with sharing class PromotionRuntimeService {
 
         Boolean isValid = false;
         if (currentStatus == STATUS_DRAFT) {
-            if (targetStatus == STATUS_READY || targetStatus == STATUS_EXECUTING || targetStatus == STATUS_CANCELLED) {
+            if (targetStatus == STATUS_READY || targetStatus == STATUS_EXECUTING || targetStatus == STATUS_COMPLETED || targetStatus == STATUS_CANCELLED) {
                 isValid = true;
             }
         } else if (currentStatus == STATUS_READY) {
-            if (targetStatus == STATUS_EXECUTING || targetStatus == STATUS_CANCELLED) {
+            if (targetStatus == STATUS_EXECUTING || targetStatus == STATUS_COMPLETED || targetStatus == STATUS_CANCELLED) {
                 isValid = true;
             }
         } else if (currentStatus == STATUS_EXECUTING) {
@@ -285,7 +293,7 @@ public with sharing class PromotionRuntimeService {
                 isValid = true;
             }
         } else if (currentStatus == STATUS_WAITING_FOR_APPROVAL) {
-            if (targetStatus == STATUS_EXECUTING || targetStatus == STATUS_FAILED || targetStatus == STATUS_CANCELLED) {
+            if (targetStatus == STATUS_EXECUTING || targetStatus == STATUS_COMPLETED || targetStatus == STATUS_FAILED || targetStatus == STATUS_CANCELLED) {
                 isValid = true;
             }
         }

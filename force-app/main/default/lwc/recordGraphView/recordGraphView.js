@@ -74,6 +74,11 @@ export default class RecordGraphView extends NavigationMixin(LightningElement) {
   Lead: 'standard:lead',
   Task: 'standard:task2'
  };
+ 
+Connectdcallback(){
+     //deployment test 1
+}
+
 
  /* ================= GLOBAL DEBUG ENGINE ================= */
  debugEnabled = true;

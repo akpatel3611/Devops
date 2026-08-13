@@ -1,0 +1,27 @@
+<template>
+    <lightning-card title="Committed User Story Metadata" icon-name="custom:custom62">
+        <div class="slds-m-around_medium">
+            <template if:true={isLoading}>
+                <div class="slds-align_absolute-center slds-m-around_large">
+                    <lightning-spinner alternative-text="Loading metadata" size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <template if:false={isLoading}>
+                <template if:true={hasMetadata}>
+                    <lightning-datatable
+                        key-field="Id"
+                        data={metadataList}
+                        columns={columns}
+                        hide-checkbox-column>
+                    </lightning-datatable>
+                </template>
+                <template if:false={hasMetadata}>
+                    <div class="slds-align_absolute-center slds-text-color_weak slds-m-around_large">
+                        No metadata components have been committed to Git/deployed from this User Story yet. Click the "Commit Changes" quick action in the header to commit changes.
+                    </div>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+</template>

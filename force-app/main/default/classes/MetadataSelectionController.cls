@@ -19,33 +19,20 @@ public with sharing class MetadataSelectionController {
 
     @AuraEnabled(cacheable=true)
     public static List<DropdownOption> getProjects(){
-
-        List<DropdownOption> results =
-            new List<DropdownOption>();
-
-        for(Project__c project : [
-
-            SELECT Id,
-                   Name
-
-            FROM Project__c
-
-            ORDER BY Name
-
-        ]){
-
-            results.add(
-
-                new DropdownOption(
-
-                    project.Name,
-
-                    project.Id
-                )
-            );
+        System.debug(LoggingLevel.INFO, '[MetadataSelectionController.getProjects] START');
+        List<DropdownOption> results = new List<DropdownOption>();
+        try {
+            for(Project__c project : [
+                SELECT Id, Name FROM Project__c ORDER BY Name
+            ]){
+                results.add(new DropdownOption(project.Name, project.Id));
+            }
+            System.debug(LoggingLevel.INFO, '[MetadataSelectionController.getProjects] Found ' + results.size() + ' projects.');
+            return results;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[MetadataSelectionController.getProjects] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw new AuraHandledException('Error fetching projects: ' + ex.getMessage());
         }
-
-        return results;
     }
 
     @AuraEnabled(cacheable=true)
@@ -201,7 +188,7 @@ public with sharing class MetadataSelectionController {
             }
 
             String token = creds[0].Access_Token__c;
-            String baseUrl = String.isNotBlank(creds[0].Instance_URL__c) && creds[0].Instance_URL__c.contains('github.com') ? creds[0].Instance_URL__c : 'https://api.github.com';
+            String baseUrl = (String.isNotBlank(creds[0].Instance_URL__c) && creds[0].Instance_URL__c.contains('api.github.com')) ? creds[0].Instance_URL__c : 'https://api.github.com';
 
             String endpoint = baseUrl + '/repos/' + owner + '/' + repoName + '/branches';
             HttpRequest req = new HttpRequest();

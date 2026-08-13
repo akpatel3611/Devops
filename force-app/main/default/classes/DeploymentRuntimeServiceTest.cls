@@ -86,6 +86,7 @@ private class DeploymentRuntimeServiceTest {
         insert req;
 
         Deployment_Log__c log = new Deployment_Log__c(
+            Name = 'Test Log Name',
             Deployment_Request__c = req.Id,
             Log_Type__c = 'Info',
             Message__c = 'Test Log',

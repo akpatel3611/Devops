@@ -1,0 +1,162 @@
+<template>
+    <div class="main-container">
+        <!-- TOP HEADER & TITLE BAR -->
+        <div class="header-card slds-card slds-p-around_medium slds-m-bottom_medium">
+            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                <div class="slds-media slds-media_center">
+                    <div class="slds-media__figure">
+                        <span class="header-icon-container">
+                            <lightning-icon icon-name="standard:release" size="medium"></lightning-icon>
+                        </span>
+                    </div>
+                    <div class="slds-media__body">
+                        <h1 class="header-title">{headerTitle}</h1>
+                        <p class="header-subtitle">
+                            Multi-Story Production Release Pipeline Execution Console
+                        </p>
+                    </div>
+                </div>
+                <div class="slds-grid slds-grid_vertical-align-center">
+                    <span class="status-badge slds-m-right_small" data-status={status}>{status}</span>
+                    <lightning-button 
+                        label="Refresh Status" 
+                        icon-name="utility:refresh" 
+                        onclick={handleRefresh}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button 
+                        label="Back to Release Console" 
+                        icon-name="utility:back" 
+                        onclick={handleBackToReleaseConsole}>
+                    </lightning-button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIPELINE FLOW BADGES -->
+        <div class="pipeline-bar slds-card slds-p-around_medium slds-m-bottom_medium">
+            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                <div class="env-pill source-env">
+                    <span class="env-label">SOURCE ENVIRONMENT</span>
+                    <span class="env-name">{sourceEnvName}</span>
+                </div>
+                <div class="flow-arrow">
+                    <lightning-icon icon-name="utility:forward" size="medium" variant="warning"></lightning-icon>
+                </div>
+                <div class="env-pill target-env">
+                    <span class="env-label">TARGET ENVIRONMENT</span>
+                    <span class="env-name">{targetEnvName}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- APPROVAL BANNER FOR WAITING PR APPROVAL -->
+        <template if:true={isWaitingPR}>
+            <div class="approval-banner slds-p-around_large slds-m-bottom_medium">
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <div class="slds-media slds-media_center">
+                        <div class="slds-media__figure">
+                            <lightning-icon icon-name="utility:lock" size="large" variant="inverse"></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <h2 class="approval-title">Production Release PR Review & Approval Pending</h2>
+                            <p class="approval-desc">
+                                All {linkedStoriesCount} User Stories have been consolidated into a single Production Release Promotion.
+                                Review Pull Request #12, check for merge conflicts, and confirm PR merge to trigger Production Deployment!
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <!-- Merge Conflict Banner if Conflict detected -->
+                        <template if:true={hasConflict}>
+                            <div class="slds-m-bottom_small slds-p-around_x-small" style="background: #3e1b1b; border: 1px solid #e74c3c; border-radius: 6px; color: #ff8888;">
+                                <div style="font-weight: bold; font-size: 13px;">⚠️ Conflict Detected in PR #12</div>
+                                <a href={prUrl} target="_blank" rel="noopener noreferrer" class="slds-button slds-button_destructive slds-m-top_x-small" style="font-size: 11px;">
+                                    🔗 Resolve Conflict on GitHub UI
+                                </a>
+                            </div>
+                        </template>
+
+                        <template if:false={isApproved}>
+                            <lightning-button 
+                                variant="success" 
+                                label="✅ Approve Pull Request" 
+                                icon-name="utility:check" 
+                                onclick={handleApprovePR}
+                                class="slds-m-right_x-small">
+                            </lightning-button>
+                        </template>
+
+                        <lightning-button 
+                            variant="brand" 
+                            label="🚀 Confirm & Merge PR" 
+                            icon-name="utility:merge" 
+                            disabled={isConfirmMergeDisabled}
+                            onclick={handleConfirmAndMergePR}
+                            class="deploy-btn">
+                        </lightning-button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- INCLUDED USER STORIES CARD -->
+        <div class="slds-card slds-p-around_medium slds-m-bottom_medium">
+            <h2 class="section-heading slds-m-bottom_small">
+                <lightning-icon icon-name="standard:user_role" size="small" class="slds-m-right_x-small"></lightning-icon>
+                Included User Stories in this Release ({linkedStoriesCount})
+            </h2>
+            <div class="stories-tags">
+                <template for:each={linkedStoryNames} for:item="sName">
+                    <span key={sName} class="story-chip">
+                        <lightning-icon icon-name="standard:story" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
+                        {sName}
+                    </span>
+                </template>
+            </div>
+        </div>
+
+        <!-- REAL-TIME PROGRESS BAR & STEPS -->
+        <div class="slds-card slds-p-around_medium">
+            <div class="slds-grid slds-grid_align-spread slds-m-bottom_small">
+                <h2 class="section-heading">
+                    <lightning-icon icon-name="utility:preview" size="small" class="slds-m-right_x-small"></lightning-icon>
+                    Real-time Deployment Execution Steps
+                </h2>
+                <span class="percent-label">{overallPercent}% Complete</span>
+            </div>
+
+            <!-- PROGRESS BAR -->
+            <div class="progress-track slds-m-bottom_large">
+                <div class="progress-fill" style={progressBarStyle}></div>
+            </div>
+
+            <!-- STEPS LIST -->
+            <div class="steps-container">
+                <template for:each={steps} for:item="st">
+                    <div key={st.id} class="step-row slds-grid slds-grid_vertical-align-center slds-p-around_small slds-m-bottom_x-small">
+                        <div class="step-status-icon slds-m-right_small">
+                            <template if:true={st.isCompleted}>
+                                <lightning-icon icon-name="utility:success" size="small" variant="success"></lightning-icon>
+                            </template>
+                            <template if:true={st.isInProgress}>
+                                <lightning-spinner alternative-text="Executing..." size="small" variant="brand"></lightning-spinner>
+                            </template>
+                            <template if:true={st.isFailed}>
+                                <lightning-icon icon-name="utility:error" size="small" variant="error"></lightning-icon>
+                            </template>
+                            <template if:true={st.isPending}>
+                                <lightning-icon icon-name="utility:record" size="x-small"></lightning-icon>
+                            </template>
+                        </div>
+                        <div class="slds-col">
+                            <div class="step-name">{st.name}</div>
+                            <div class="step-detail">{st.detail}</div>
+                        </div>
+                        <div class="step-time">{st.formattedTime}</div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

@@ -209,6 +209,7 @@ public with sharing class MetadataScannerService {
 
     public static MetadataScannerResult discoverMetadata(List<ChangedFile> files, String scanSource) {
         Long startTime = System.currentTimeMillis();
+        System.debug(LoggingLevel.INFO, '[MetadataScannerService.discoverMetadata] START - scanSource: ' + scanSource + ' | Files Count: ' + (files != null ? files.size() : 0));
         MetadataScannerResult result = new MetadataScannerResult();
         result.scannerVersion = '1.0';
         result.scanSource = String.isNotBlank(scanSource) ? scanSource : 'Manual';
@@ -217,63 +218,72 @@ public with sharing class MetadataScannerService {
         result.metadataComponents = new List<MetadataComponent>();
         result.metadataTypeCounts = new Map<String, Integer>();
         
-        if (files == null) {
-            result.totalFiles = 0;
-            result.supportedFiles = 0;
-            result.unsupportedFiles = 0;
-            result.deployableFiles = 0;
-            result.metadataCount = 0;
-            result.scanTime = System.currentTimeMillis() - startTime;
-            postProcessMetadata(result);
-            return result;
-        }
-        
-        result.totalFiles = files.size();
-        
-        // 1. Scan files
-        List<MetadataComponent> scannedComps = scanFiles(files, result);
-        
-        // 2. Remove duplicates
-        List<MetadataComponent> deduplicated = removeDuplicates(scannedComps);
-        
-        // 3. Sort components
-        sortMetadata(deduplicated);
-        
-        // 4. Fill stats & results
-        result.metadataComponents = deduplicated;
-        result.metadataCount = deduplicated.size();
-        
-        Integer supported = 0;
-        Integer unsupported = 0;
-        Integer deployable = 0;
-        
-        for (MetadataComponent comp : deduplicated) {
-            if (comp.supported == true) {
-                supported++;
-            } else {
-                unsupported++;
-            }
-            if (comp.deployable == true) {
-                deployable++;
+        try {
+            if (files == null) {
+                System.debug(LoggingLevel.WARN, '[MetadataScannerService.discoverMetadata] Warning: files parameter is null.');
+                result.totalFiles = 0;
+                result.supportedFiles = 0;
+                result.unsupportedFiles = 0;
+                result.deployableFiles = 0;
+                result.metadataCount = 0;
+                result.scanTime = System.currentTimeMillis() - startTime;
+                postProcessMetadata(result);
+                return result;
             }
             
-            // Count type occurrences
-            if (String.isNotBlank(comp.metadataType)) {
-                String typeName = comp.metadataType;
-                Integer currentCount = result.metadataTypeCounts.containsKey(typeName) ? result.metadataTypeCounts.get(typeName) : 0;
-                result.metadataTypeCounts.put(typeName, currentCount + 1);
+            result.totalFiles = files.size();
+            System.debug(LoggingLevel.DEBUG, '[MetadataScannerService.discoverMetadata] Step 1: Scanning ' + result.totalFiles + ' files...');
+            
+            // 1. Scan files
+            List<MetadataComponent> scannedComps = scanFiles(files, result);
+            System.debug(LoggingLevel.DEBUG, '[MetadataScannerService.discoverMetadata] Step 1 Complete: Scanned ' + scannedComps.size() + ' components.');
+            
+            // 2. Remove duplicates
+            List<MetadataComponent> deduplicated = removeDuplicates(scannedComps);
+            System.debug(LoggingLevel.DEBUG, '[MetadataScannerService.discoverMetadata] Step 2 Complete: Deduplicated to ' + deduplicated.size() + ' unique components.');
+            
+            // 3. Sort components
+            sortMetadata(deduplicated);
+            
+            // 4. Fill stats & results
+            result.metadataComponents = deduplicated;
+            result.metadataCount = deduplicated.size();
+            
+            Integer supported = 0;
+            Integer unsupported = 0;
+            Integer deployable = 0;
+            
+            for (MetadataComponent comp : deduplicated) {
+                if (comp.supported == true) {
+                    supported++;
+                } else {
+                    unsupported++;
+                }
+                if (comp.deployable == true) {
+                    deployable++;
+                }
+                
+                // Count type occurrences
+                if (String.isNotBlank(comp.metadataType)) {
+                    String typeName = comp.metadataType;
+                    Integer currentCount = result.metadataTypeCounts.containsKey(typeName) ? result.metadataTypeCounts.get(typeName) : 0;
+                    result.metadataTypeCounts.put(typeName, currentCount + 1);
+                }
             }
+            
+            result.supportedFiles = supported;
+            result.unsupportedFiles = unsupported;
+            result.deployableFiles = deployable;
+            
+            result.scanTime = System.currentTimeMillis() - startTime;
+            System.debug(LoggingLevel.INFO, '[MetadataScannerService.discoverMetadata] SUCCESS - Scanned in ' + result.scanTime + 'ms | Total Metadata: ' + result.metadataCount + ' | Deployable: ' + result.deployableFiles);
+            return result;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[MetadataScannerService.discoverMetadata] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            result.errors.add('Scanner failure: ' + ex.getMessage());
+            result.scanTime = System.currentTimeMillis() - startTime;
+            return result;
         }
-        
-        result.supportedFiles = supported;
-        result.unsupportedFiles = unsupported;
-        result.deployableFiles = deployable;
-        
-        // 5. Post Process hook
-        postProcessMetadata(result);
-        
-        result.scanTime = System.currentTimeMillis() - startTime;
-        return result;
     }
 
     // ==========================================
@@ -281,22 +291,29 @@ public with sharing class MetadataScannerService {
     // ==========================================
 
     private static List<MetadataComponent> scanFiles(List<ChangedFile> files, MetadataScannerResult result) {
+        System.debug(LoggingLevel.INFO, '[MetadataScannerService.scanFiles] START - Scanning ' + files.size() + ' files.');
         List<MetadataComponent> comps = new List<MetadataComponent>();
         for (ChangedFile file : files) {
             if (file == null || String.isBlank(file.filename)) {
+                System.debug(LoggingLevel.FINE, '[MetadataScannerService.scanFiles] Skipping blank or null file object.');
                 continue;
             }
             if (shouldIgnoreFile(file.filename)) {
+                System.debug(LoggingLevel.FINE, '[MetadataScannerService.scanFiles] File ignored by rule: ' + file.filename);
                 result.warnings.add('File is ignored based on path rules: ' + file.filename);
                 continue;
             }
             try {
+                System.debug(LoggingLevel.FINE, '[MetadataScannerService.scanFiles] Building metadata item for file: ' + file.filename + ' | Status: ' + file.status);
                 MetadataComponent comp = buildMetadataComponent(file);
                 comps.add(comp);
+                System.debug(LoggingLevel.FINEST, '[MetadataScannerService.scanFiles] Successfully parsed component: ' + comp.metadataType + ' -> ' + comp.apiName);
             } catch (Exception e) {
+                System.debug(LoggingLevel.ERROR, '[MetadataScannerService.scanFiles] Exception scanning ' + file.filename + ': ' + e.getMessage());
                 result.errors.add('Failed to scan file ' + file.filename + ': ' + e.getMessage());
             }
         }
+        System.debug(LoggingLevel.INFO, '[MetadataScannerService.scanFiles] SUCCESS - Total parsed components: ' + comps.size());
         return comps;
     }
 

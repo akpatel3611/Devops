@@ -1,0 +1,87 @@
+.test-tab-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 250px;
+}
+
+.copado-card {
+    background: #ffffff;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    min-height: 220px;
+}
+
+.copado-card-body {
+    min-height: 180px;
+    position: relative;
+}
+
+.copado-green-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #2e844a;
+    border-radius: 4px;
+    padding: 6px;
+    --slds-c-icon-color-foreground: #ffffff;
+    --slds-c-icon-color-foreground-default: #ffffff;
+}
+
+.copado-green-icon lightning-icon {
+    --slds-c-icon-color-foreground: #ffffff;
+    --slds-c-icon-color-foreground-default: #ffffff;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.header-actions-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.search-input {
+    width: 240px;
+}
+
+.table-wrapper {
+    position: relative;
+    border-top: 1px solid #dddbda;
+    min-height: 120px;
+}
+
+.empty-table-message {
+    background-color: #ffffff;
+    border-top: 1px solid #e5e5e5;
+    padding-top: 22px !important;
+    padding-bottom: 22px !important;
+    min-height: 60px;
+}
+
+.no-data-text {
+    color: #444444;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #dddbda;
+}
+
+.border-top {
+    border-top: 1px solid #dddbda;
+}
+
+.field-label {
+    color: #514f4d;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.slds-block {
+    display: block;
+}

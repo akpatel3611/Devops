@@ -42,13 +42,16 @@ public with sharing class MetadataInventoryService {
      * If not, generates a default mock inventory, persists it, and returns the records.
      */
     public static List<User_Story_Metadata__c> buildOrLoadInventory(Id userStoryId) {
+        System.debug(LoggingLevel.INFO, '[MetadataInventoryService.buildOrLoadInventory] START - userStoryId: ' + userStoryId);
         if (userStoryId == null) {
+            System.debug(LoggingLevel.WARN, '[MetadataInventoryService.buildOrLoadInventory] Warning: userStoryId is null.');
             throw new MetadataInventoryException('User Story ID cannot be null.');
         }
 
         try {
             List<User_Story_Metadata__c> existing = loadInventory(userStoryId);
             if (!existing.isEmpty()) {
+                System.debug(LoggingLevel.INFO, '[MetadataInventoryService.buildOrLoadInventory] SUCCESS - Loaded ' + existing.size() + ' existing inventory items.');
                 return existing;
             }
 
@@ -56,10 +59,12 @@ public with sharing class MetadataInventoryService {
             List<User_Story_Metadata__c> generated = generateDefaultInventory(userStoryId);
             if (!generated.isEmpty()) {
                 insert generated;
+                System.debug(LoggingLevel.INFO, '[MetadataInventoryService.buildOrLoadInventory] SUCCESS - Generated and inserted ' + generated.size() + ' inventory items.');
             }
             return generated;
         } catch (Exception ex) {
-            throw new MetadataInventoryException('Failed to build or load metadata inventory: ' + ex.getMessage(), ex);
+            System.debug(LoggingLevel.ERROR, '[MetadataInventoryService.buildOrLoadInventory] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw new MetadataInventoryException('Failed to build/load inventory: ' + ex.getMessage(), ex);
         }
     }
 

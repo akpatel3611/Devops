@@ -1,0 +1,156 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-01" class="slds-modal slds-fade-in-open slds-modal_medium">
+        <div class="slds-modal__container">
+            <!-- Modal Header -->
+            <header class="slds-modal__header modal-header-gradient">
+                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleClose}>
+                    <lightning-icon icon-name="utility:close" alternative-text="close" size="small" variant="inverse"></lightning-icon>
+                    <span class="slds-assistive-text">Close</span>
+                </button>
+                <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate slds-text-color_inverse">Commit Changes Wizard</h2>
+                <p class="slds-m-top_xx-small slds-text-color_inverse-weak">
+                    Source: {sourceEnvName} &nbsp;|&nbsp; Branch: {featureBranch}
+                </p>
+            </header>
+
+            <!-- Modal Body -->
+            <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                <!-- Loader -->
+                <template if:true={isProcessing}>
+                    <lightning-spinner alternative-text="Processing commit operation" size="medium" variant="brand"></lightning-spinner>
+                </template>
+
+                <div class="slds-grid slds-gutters slds-m-bottom_medium">
+                    <!-- Git Operation -->
+                    <div class="slds-col slds-size_1-of-3">
+                        <lightning-combobox
+                            name="gitOperation"
+                            label="Git Operation"
+                            value={gitOperation}
+                            placeholder="Select Operation"
+                            options={gitOperations}
+                            onchange={handleGitOperationChange}
+                            required>
+                        </lightning-combobox>
+                    </div>
+
+                    <!-- Commit Message -->
+                    <div class="slds-col slds-size_2-of-3">
+                        <lightning-textarea
+                            name="commitMessage"
+                            label="Commit Message"
+                            value={commitMessage}
+                            onchange={handleCommitMessageChange}
+                            placeholder="e.g. US-0001: Setup custom fields and page layouts"
+                            required
+                            max-length="255"
+                            rows="2">
+                        </lightning-textarea>
+                    </div>
+                </div>
+
+                <!-- Tabs to switch between search and selections -->
+                <lightning-tabset variant="scoped">
+                    <!-- Tab 1: Metadata Explorer -->
+                    <lightning-tab label="All Sandbox Metadata">
+                        <div class="slds-grid slds-gutters slds-m-bottom_medium">
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-combobox
+                                    name="metadataType"
+                                    label="Select Metadata Type"
+                                    value={selectedType}
+                                    placeholder="Choose Type..."
+                                    options={typeOptions}
+                                    onchange={handleTypeChange}
+                                    loading={isLoadingTypes}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <lightning-input
+                                    name="search"
+                                    label="Search Components"
+                                    value={searchKeyword}
+                                    placeholder="Type keyword..."
+                                    onchange={handleSearchChange}
+                                    type="search"
+                                    class="slds-m-bottom_small">
+                                </lightning-input>
+                            </div>
+                        </div>
+
+                        <!-- Components List datatable -->
+                        <div class="grid-container">
+                            <template if:true={isLoadingMetadata}>
+                                <div class="slds-align_absolute-center slds-m-around_medium">
+                                    <lightning-spinner alternative-text="Loading components" size="small"></lightning-spinner>
+                                </div>
+                            </template>
+                            <template if:false={isLoadingMetadata}>
+                                <template if:true={hasComponents}>
+                                    <lightning-datatable
+                                        key-field="value"
+                                        data={filteredComponents}
+                                        columns={columns}
+                                        selected-rows={selectedRows}
+                                        onrowselection={handleRowSelection}>
+                                    </lightning-datatable>
+                                </template>
+                                <template if:false={hasComponents}>
+                                    <div class="slds-align_absolute-center slds-text-color_weak slds-m-around_medium">
+                                        No metadata components found. Please select a type or refine your search.
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+                    </lightning-tab>
+
+                    <!-- Tab 2: Selected Components Preview -->
+                    <lightning-tab label={selectedTabLabel}>
+                        <div class="slds-m-around_medium">
+                            <template if:true={hasSelections}>
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                                    <thead>
+                                        <tr class="slds-line-height_reset">
+                                            <th scope="col"><div class="slds-truncate" title="Name">Name</div></th>
+                                            <th scope="col"><div class="slds-truncate" title="Type">Type</div></th>
+                                            <th scope="col"><div class="slds-truncate" title="Action">Action</div></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={selectionsList} for:item="sel">
+                                            <tr key={sel.value}>
+                                                <td><div class="slds-truncate">{sel.value}</div></td>
+                                                <td><div class="slds-truncate">{sel.type}</div></td>
+                                                <td>
+                                                    <lightning-button-icon
+                                                        icon-name="utility:delete"
+                                                        variant="border-filled"
+                                                        alternative-text="Remove"
+                                                        data-id={sel.value}
+                                                        onclick={handleRemoveSelection}>
+                                                    </lightning-button-icon>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </template>
+                            <template if:false={hasSelections}>
+                                <div class="slds-align_absolute-center slds-text-color_weak slds-m-around_medium">
+                                    No components selected yet. Please select components in the "All Sandbox Metadata" tab.
+                                </div>
+                            </template>
+                        </div>
+                    </lightning-tab>
+                </lightning-tabset>
+            </div>
+
+            <!-- Modal Footer -->
+            <footer class="slds-modal__footer">
+                <lightning-button label="Cancel" onclick={handleClose} class="slds-m-right_x-small"></lightning-button>
+                <lightning-button label="Commit Changes" variant="brand" onclick={handleCommit} disabled={isCommitDisabled}></lightning-button>
+            </footer>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</template>

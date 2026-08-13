@@ -1,0 +1,127 @@
+/* =========================================================================
+   userStoryDeliverTab.css
+   Clean Salesforce / Copado Related List Styles
+   ========================================================================= */
+
+.deliver-tab-container {
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.related-list-card {
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+}
+
+.table-scroll {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.table-link {
+    color: #0070d2;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.table-link:hover {
+    text-decoration: underline;
+}
+
+.col-check {
+    width: 40px;
+    text-align: center;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 12px;
+}
+
+.status-badge--success {
+    background: #d1ebd4;
+    color: #0e6219;
+}
+
+.status-badge--error {
+    background: #fedcdb;
+    color: #c20c03;
+}
+
+.status-badge--warning {
+    background: #ffeeb5;
+    color: #8a6d00;
+}
+
+.status-badge--executing {
+    background: #d0e7fe;
+    color: #004fb2;
+}
+
+.status-badge--draft {
+    background: #f3f2f1;
+    color: #514f4d;
+}
+
+.empty-state {
+    padding: 32px 16px;
+    text-align: center;
+    color: #747474;
+    font-style: italic;
+    font-size: 13px;
+    background: #ffffff;
+}
+
+.view-all-link {
+    color: #0070d2;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.view-all-link:hover {
+    text-decoration: underline;
+}
+
+/* Pushing Branch Overlay styles */
+.pushing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pushing-spinner-card {
+    background: #ffffff;
+    padding: 32px 48px;
+    border-radius: 8px;
+    border: 1px solid #dddbda;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    position: relative;
+    min-width: 250px;
+}
+
+.pushing-text {
+    margin-top: 48px;
+    font-weight: 600;
+    color: #181818;
+    font-size: 14px;
+}
