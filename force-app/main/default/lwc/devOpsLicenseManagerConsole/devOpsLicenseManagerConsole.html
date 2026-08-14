@@ -1,7 +1,7 @@
 <template>
     <div class="license-console-container slds-p-around_medium">
         
-        <!-- Header Banner -->
+        <!-- Copado-Style Header Banner -->
         <div class="console-header-card slds-p-around_medium slds-m-bottom_medium slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
             <div class="slds-media slds-media_center">
                 <div class="slds-media__figure">
@@ -10,56 +10,79 @@
                     </span>
                 </div>
                 <div class="slds-media__body">
-                    <h1 class="console-main-title">DevOps License & User Access Management Console</h1>
-                    <p class="console-sub-title">Manage allocated DevOps licenses, user permissions, and license assignment toggles in real time.</p>
+                    <h1 class="console-main-title">DevOps License & Entitlement Manager</h1>
+                    <p class="console-sub-title">Centralized admin portal to allocate, audit, and sync multi-tier DevOps feature seat entitlements across org users.</p>
                 </div>
             </div>
             <div class="header-right-actions">
                 <button class="slds-button slds-button_neutral refresh-btn" onclick={handleRefreshAll}>
                     <lightning-icon icon-name="utility:refresh" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
-                    Refresh Overview
+                    Refresh Entitlements
                 </button>
             </div>
         </div>
 
-        <!-- License Allocation Gauge Cards -->
+        <!-- Copado-Style Capacity Progress Bar Gauges -->
         <div class="slds-grid slds-gutters slds-m-bottom_medium">
             <div class="slds-col slds-size_1-of-4">
-                <div class="metric-card card-blue">
-                    <div class="metric-label">TOTAL ALLOCATED LICENSES</div>
-                    <div class="metric-value">{overview.totalAllocatedLicenses}</div>
-                    <div class="metric-sub">Org Max Allocation</div>
+                <div class="gauge-card">
+                    <div class="gauge-header">
+                        <span class="gauge-label">DevOps Admin</span>
+                        <span class="gauge-count">{overview.usedAdminLicenses} / {overview.totalAdminLicenses}</span>
+                    </div>
+                    <div class="gauge-track">
+                        <div class="gauge-fill fill-admin" style={adminProgressStyle}></div>
+                    </div>
+                    <div class="gauge-sub">Full Pipeline & Inspector Access</div>
                 </div>
             </div>
+
             <div class="slds-col slds-size_1-of-4">
-                <div class="metric-card card-orange">
-                    <div class="metric-label">USED LICENSES</div>
-                    <div class="metric-value">{overview.usedLicensesCount}</div>
-                    <div class="metric-sub">Active Users Licensed</div>
+                <div class="gauge-card">
+                    <div class="gauge-header">
+                        <span class="gauge-label">DevOps Developer</span>
+                        <span class="gauge-count">{overview.usedDeveloperLicenses} / {overview.totalDeveloperLicenses}</span>
+                    </div>
+                    <div class="gauge-track">
+                        <div class="gauge-fill fill-dev" style={devProgressStyle}></div>
+                    </div>
+                    <div class="gauge-sub">Metadata Commit & Test Execution</div>
                 </div>
             </div>
+
             <div class="slds-col slds-size_1-of-4">
-                <div class="metric-card card-green">
-                    <div class="metric-label">AVAILABLE LICENSES</div>
-                    <div class="metric-value">{overview.availableLicensesCount}</div>
-                    <div class="metric-sub">Ready for Assignment</div>
+                <div class="gauge-card">
+                    <div class="gauge-header">
+                        <span class="gauge-label">Release Manager</span>
+                        <span class="gauge-count">{overview.usedReleaseManagerLicenses} / {overview.totalReleaseManagerLicenses}</span>
+                    </div>
+                    <div class="gauge-track">
+                        <div class="gauge-fill fill-rm" style={rmProgressStyle}></div>
+                    </div>
+                    <div class="gauge-sub">Stage Promotions & Quality Gates</div>
                 </div>
             </div>
+
             <div class="slds-col slds-size_1-of-4">
-                <div class="metric-card card-slate">
-                    <div class="metric-label">ACTIVE ORG USERS</div>
-                    <div class="metric-value">{overview.activeUsersCount}</div>
-                    <div class="metric-sub">Total Active Users</div>
+                <div class="gauge-card">
+                    <div class="gauge-header">
+                        <span class="gauge-label">Active Org Users</span>
+                        <span class="gauge-count">{overview.activeOrgUsersCount}</span>
+                    </div>
+                    <div class="gauge-track">
+                        <div class="gauge-fill fill-org" style="width: 100%;"></div>
+                    </div>
+                    <div class="gauge-sub">Total Active Salesforce Users</div>
                 </div>
             </div>
         </div>
 
-        <!-- User Search & Filter Toolbar -->
+        <!-- Copado-Style Users With Licenses Table -->
         <div class="table-card slds-p-around_medium">
             <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_medium">
                 <div class="table-title">
-                    <h2 class="font-bold text-lg">Salesforce User License Assignment Table</h2>
-                    <p class="text-sm text-muted">Toggle the license switch to assign or revoke DevOps user permissions.</p>
+                    <h2 class="font-bold text-lg">Users with Feature Entitlements</h2>
+                    <p class="text-sm text-muted">Check or uncheck feature checkboxes to grant or revoke specific DevOps role entitlements.</p>
                 </div>
                 <div class="search-input-box">
                     <lightning-input
@@ -76,56 +99,60 @@
             <!-- Loading Spinner -->
             <template if:true={isLoading}>
                 <div class="slds-p-around_large slds-text-align_center">
-                    <lightning-spinner alternative-text="Loading User Licenses..." size="medium" variant="brand"></lightning-spinner>
-                    <p class="slds-m-top_small text-muted">Fetching Salesforce user license details...</p>
+                    <lightning-spinner alternative-text="Loading Entitlements..." size="medium" variant="brand"></lightning-spinner>
+                    <p class="slds-m-top_small text-muted">Calculating real-time license allocations...</p>
                 </div>
             </template>
 
-            <!-- User Datatable -->
+            <!-- User License Datatable -->
             <template if:false={isLoading}>
                 <div class="slds-scrollable_x">
                     <table class="slds-table slds-table_cell-buffer slds-table_bordered custom-user-table">
                         <thead>
                             <tr class="slds-line-height_reset">
-                                <th scope="col"><div class="slds-truncate">USER NAME</div></th>
+                                <th scope="col"><div class="slds-truncate">FULL NAME</div></th>
                                 <th scope="col"><div class="slds-truncate">EMAIL</div></th>
                                 <th scope="col"><div class="slds-truncate">PROFILE</div></th>
-                                <th scope="col"><div class="slds-truncate">ROLE</div></th>
-                                <th scope="col"><div class="slds-truncate">LICENSE TIER</div></th>
-                                <th scope="col"><div class="slds-truncate">DEVOPS LICENSE STATUS</div></th>
-                                <th scope="col"><div class="slds-truncate">ASSIGN / REVOKE TOGGLE</div></th>
+                                <th scope="col"><div class="slds-truncate">LAST LOGIN</div></th>
+                                <th scope="col" class="slds-text-align_center"><div class="slds-truncate">DEVOPS ADMIN</div></th>
+                                <th scope="col" class="slds-text-align_center"><div class="slds-truncate">DEVOPS DEVELOPER</div></th>
+                                <th scope="col" class="slds-text-align_center"><div class="slds-truncate">RELEASE MANAGER</div></th>
                             </tr>
                         </thead>
                         <tbody>
                             <template for:each={userList} for:item="u">
                                 <tr key={u.userId} class="slds-hint-parent">
                                     <td>
-                                        <div class="slds-truncate font-semibold user-name-link">{u.name}</div>
+                                        <div class="slds-truncate font-semibold user-name-link">{u.userName}</div>
                                     </td>
                                     <td><div class="slds-truncate">{u.email}</div></td>
                                     <td><div class="slds-truncate">{u.profileName}</div></td>
-                                    <td><div class="slds-truncate">{u.roleName}</div></td>
-                                    <td>
-                                        <span class="tier-pill">{u.licenseTier}</span>
-                                    </td>
-                                    <td>
-                                        <template if:true={u.isLicensed}>
-                                            <span class="status-badge status-active">ACTIVE LICENSE</span>
-                                        </template>
-                                        <template if:false={u.isLicensed}>
-                                            <span class="status-badge status-inactive">UNLICENSED</span>
-                                        </template>
-                                    </td>
-                                    <td>
+                                    <td><div class="slds-truncate">{u.lastLoginDate}</div></td>
+                                    <td class="slds-text-align_center">
                                         <lightning-input
-                                            type="toggle"
-                                            label=""
-                                            checked={u.isLicensed}
+                                            type="checkbox"
+                                            checked={u.isDevOpsAdmin}
                                             data-id={u.userId}
-                                            data-name={u.name}
-                                            message-toggle-active="Licensed"
-                                            message-toggle-inactive="Revoked"
-                                            onchange={handleToggleUserLicense}>
+                                            data-type="Admin"
+                                            onchange={handleCheckboxToggle}>
+                                        </lightning-input>
+                                    </td>
+                                    <td class="slds-text-align_center">
+                                        <lightning-input
+                                            type="checkbox"
+                                            checked={u.isDevOpsDeveloper}
+                                            data-id={u.userId}
+                                            data-type="Developer"
+                                            onchange={handleCheckboxToggle}>
+                                        </lightning-input>
+                                    </td>
+                                    <td class="slds-text-align_center">
+                                        <lightning-input
+                                            type="checkbox"
+                                            checked={u.isReleaseManager}
+                                            data-id={u.userId}
+                                            data-type="ReleaseManager"
+                                            onchange={handleCheckboxToggle}>
                                         </lightning-input>
                                     </td>
                                 </tr>
