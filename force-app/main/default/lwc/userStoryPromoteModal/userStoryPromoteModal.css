@@ -1,0 +1,174 @@
+/* Remove dark/black blur backdrop behind modal */
+.slds-backdrop {
+    display: none !important;
+    background: transparent !important;
+    opacity: 0 !important;
+    backdrop-filter: none !important;
+}
+
+.custom-modal-container {
+    max-width: 720px !important;
+    width: 720px !important;
+    min-height: 460px !important;
+    padding: 0 !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+
+.modal-header-custom {
+    background: #ffffff !important;
+    border-bottom: 1px solid #dddbda !important;
+    border-radius: 8px 8px 0 0;
+    padding: 16px 24px !important;
+    text-align: center;
+}
+
+.modal-title-custom {
+    color: #080707 !important;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+}
+
+.modal-content-custom {
+    min-height: 320px;
+    background: #ffffff;
+    padding: 24px !important;
+}
+
+.prompt-text {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #181818;
+    margin-bottom: 20px;
+}
+
+.target-highlight {
+    color: #0070d2;
+    font-weight: 700;
+}
+
+.progression-card {
+    background: #f3f8fe !important;
+    border: 1px solid #c9deff !important;
+    border-radius: 8px !important;
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+}
+
+.progression-title {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    color: #514f4d !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.progression-text {
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    color: #0070d2 !important;
+    margin: 0 !important;
+}
+
+.console-hint {
+    font-size: 0.85rem;
+    color: #514f4d;
+}
+
+.steps-console-box {
+    background: #fafaf9 !important;
+    border: 1px solid #dddbda !important;
+    border-radius: 6px !important;
+    max-height: 280px !important;
+    min-height: 160px;
+    padding: 12px !important;
+    overflow-y: auto;
+}
+
+.step-row {
+    padding: 6px 10px;
+    background: #ffffff;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    border: 1px solid #e5e5e5;
+    font-size: 0.875rem;
+    color: #181818;
+}
+
+.slds-modal__footer {
+    background: #f3f2f1 !important;
+    border-top: 1px solid #dddbda !important;
+    border-radius: 0 0 8px 8px;
+    padding: 12px 24px !important;
+}
+
+.step-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 16px;
+    font-size: 0.825rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border: none;
+    white-space: nowrap;
+}
+
+.step-btn-neutral {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.step-btn-neutral:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.step-btn-outline {
+    background: #ffffff;
+    color: #0284c7;
+    border: 1.5px solid #0284c7;
+}
+
+.step-btn-outline:hover {
+    background: #f0f9ff;
+    border-color: #0369a1;
+    color: #0369a1;
+}
+
+.step-btn-commit {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.step-btn-commit:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
+}
+
+.step-btn:disabled,
+.step-btn-commit:disabled {
+    background: #cbd5e1 !important;
+    color: #64748b !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.step-btn-success {
+    background: #059669;
+    color: #ffffff;
+    border: 1px solid #047857;
+}
+
+.step-btn-success:hover {
+    background: #047857;
+}

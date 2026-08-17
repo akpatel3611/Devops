@@ -49,35 +49,45 @@ public with sharing class GitHubIntegrationService {
         String signature,
         String userAgent
     ) {
-        validateEnvelope(rawJson, eventName, deliveryId);
+        System.debug(LoggingLevel.INFO, '[GitHubIntegrationService.processWebhook] START - eventName: ' + eventName + ' | deliveryId: ' + deliveryId);
+        try {
+            validateEnvelope(rawJson, eventName, deliveryId);
 
-        String normalizedEvent = eventName.trim().toLowerCase();
-        WebhookResult result = new WebhookResult();
-        result.deliveryId = deliveryId;
-        result.eventName = normalizedEvent;
-        result.status = STATUS_IGNORED;
-        result.message = 'GitHub event ignored.';
+            String normalizedEvent = eventName.trim().toLowerCase();
+            WebhookResult result = new WebhookResult();
+            result.deliveryId = deliveryId;
+            result.eventName = normalizedEvent;
+            result.status = STATUS_IGNORED;
+            result.message = 'GitHub event ignored.';
 
-        if (!SUPPORTED_EVENTS.contains(normalizedEvent)) {
+            if (!SUPPORTED_EVENTS.contains(normalizedEvent)) {
+                System.debug(LoggingLevel.WARN, '[GitHubIntegrationService.processWebhook] Unsupported GitHub event: ' + normalizedEvent);
+                return result;
+            }
+
+            WebhookPayload payload = parsePayload(rawJson);
+            if (normalizedEvent == EVENT_PULL_REQUEST) {
+                System.debug(LoggingLevel.INFO, '[GitHubIntegrationService.processWebhook] Processing pull_request event.');
+                return processPullRequest(payload, normalizedEvent, deliveryId, signature, userAgent);
+            }
+
+            if (normalizedEvent == EVENT_PUSH || normalizedEvent == EVENT_PING) {
+                System.debug(LoggingLevel.INFO, '[GitHubIntegrationService.processWebhook] Processing ' + normalizedEvent + ' event.');
+                result.status = STATUS_PROCESSED;
+                result.message = 'GitHub ' + normalizedEvent + ' event received successfully.';
+                return result;
+            }
+
             return result;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[GitHubIntegrationService.processWebhook] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            WebhookResult errResult = new WebhookResult();
+            errResult.deliveryId = deliveryId;
+            errResult.eventName = eventName;
+            errResult.status = 'error';
+            errResult.message = ex.getMessage();
+            return errResult;
         }
-
-        WebhookPayload payload = parsePayload(rawJson);
-        if (normalizedEvent == EVENT_PULL_REQUEST) {
-            return processPullRequest(payload, normalizedEvent, deliveryId, signature, userAgent);
-        }
-
-        if (normalizedEvent == EVENT_PUSH || normalizedEvent == EVENT_PING) {
-            GitHubRecordService.RecordResult recordResult =
-                GitHubRecordService.processRepositoryEvent(
-                    buildRecordData(payload, normalizedEvent, deliveryId, signature, userAgent)
-                );
-            result.status = recordResult.status;
-            result.message = recordResult.message;
-            return result;
-        }
-
-        return result;
     }
 
     /**

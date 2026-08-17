@@ -1,0 +1,436 @@
+/* =========================================================================
+   User Story Build Tab - Clean Premium Salesforce UI matching Copado
+   ========================================================================= */
+
+.build-tab-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 2px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #181818;
+}
+
+/* ---- Collapsible Section Card ---- */
+.section-card {
+    background: #ffffff;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f3f2f1;
+    border-bottom: 1px solid #dddbda;
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-header:hover {
+    background: #e1e0df;
+}
+
+.chevron-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Chevron arrows custom css */
+.chevron {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    display: inline-block;
+    transition: transform 0.15s ease;
+}
+
+.chevron-right {
+    border-width: 5px 0 5px 8px;
+    border-color: transparent transparent transparent #747474;
+}
+
+.chevron-down {
+    border-width: 8px 5px 0 5px;
+    border-color: #747474 transparent transparent transparent;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #080707;
+}
+
+.section-body {
+    padding: 16px;
+}
+
+.field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.field-label {
+    font-size: 12px;
+    color: #514f4d;
+    font-weight: 500;
+}
+
+.field-value {
+    font-size: 13px;
+    color: #080707;
+    background: #f3f2f1;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #dddbda;
+    display: inline-block;
+    min-height: 32px;
+    box-sizing: border-box;
+}
+
+/* ---- Metadata Table Card ---- */
+.metadata-card {
+    border-radius: 4px;
+}
+
+.metadata-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #dddbda;
+}
+
+.metadata-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #080707;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #dddbda;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #0070d2;
+    border-color: #dddbda;
+}
+
+.btn-secondary:hover {
+    background: #f3f2f1;
+    border-color: #c9c7c5;
+}
+
+.btn-primary {
+    background: #0070d2;
+    color: #ffffff;
+    border-color: #0070d2;
+}
+
+.btn-primary:hover {
+    background: #005fb2;
+    border-color: #005fb2;
+}
+
+.btn-icon {
+    margin-right: 6px;
+    --lwc-colorTextIconDefault: #0070d2;
+}
+
+/* Table scroll wrapper */
+.table-scroll-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.metadata-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: left;
+}
+
+.metadata-table th {
+    background: #fafaf9;
+    color: #514f4d;
+    font-weight: 700;
+    padding: 10px 8px;
+    border-bottom: 2px solid #dddbda;
+    border-right: 1px solid #dddbda;
+    vertical-align: top;
+    white-space: normal;
+}
+
+.th-label {
+    margin-bottom: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.filter-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #ffffff;
+    box-sizing: border-box;
+    height: 28px;
+}
+
+.filter-input:focus, .filter-select:focus {
+    border-color: #1589ee;
+    outline: none;
+    box-shadow: 0 0 3px #1589ee;
+}
+
+.filter-select {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #ffffff;
+    box-sizing: border-box;
+    height: 28px;
+    color: #181818;
+}
+
+.metadata-table td {
+    padding: 8px;
+    border-bottom: 1px solid #dddbda;
+    border-right: 1px solid #dddbda;
+    color: #080707;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.data-row:hover {
+    background: #f3f2f1;
+}
+
+.td-center {
+    text-align: center;
+}
+
+.col-checkbox {
+    width: 60px;
+    min-width: 60px;
+}
+
+.col-name {
+    min-width: 140px;
+}
+
+.col-type {
+    min-width: 90px;
+}
+
+.col-user {
+    min-width: 110px;
+}
+
+.col-date {
+    min-width: 100px;
+}
+
+.cell-text {
+    font-size: 12px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 32px;
+    color: #747474;
+    font-style: italic;
+    font-size: 13px;
+    background: #ffffff;
+}
+
+/* ---- Pagination Row ---- */
+.pagination-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    background: #fafaf9;
+    border-top: 1px solid #dddbda;
+    gap: 8px;
+    font-size: 12px;
+    flex-wrap: wrap;
+}
+
+.pagination-label {
+    color: #514f4d;
+    font-weight: 500;
+}
+
+.page-input {
+    width: 45px;
+    padding: 4px;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    text-align: center;
+    height: 28px;
+    box-sizing: border-box;
+}
+
+.rows-select {
+    padding: 4px;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    height: 28px;
+    box-sizing: border-box;
+}
+
+.pagination-sep {
+    color: #c9c7c5;
+    margin: 0 4px;
+}
+
+.pagination-info {
+    color: #080707;
+    font-weight: 600;
+}
+
+.page-nav-btn {
+    border: 1px solid #dddbda;
+    background: #ffffff;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    color: #0070d2;
+    transition: all 0.1s ease;
+}
+
+.page-nav-btn:hover:not([disabled]) {
+    background: #f3f2f1;
+}
+
+.page-nav-btn[disabled] {
+    color: #c9c7c5;
+    cursor: not-allowed;
+    background: #f3f2f1;
+}
+
+/* ---- Loading Spinner ---- */
+.loading-row {
+    position: relative;
+    height: 80px;
+    background: #ffffff;
+}
+
+/* ---- Deployment Tasks ---- */
+.tasks-card {
+    border-radius: 4px;
+}
+
+.tasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #dddbda;
+}
+
+.tasks-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-icon-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #9f76ef; /* Purple icon circle like Copado */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.task-icon-circle::after {
+    content: "✓";
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.tasks-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #080707;
+}
+
+.task-list {
+    padding: 8px 16px;
+    background: #ffffff;
+}
+
+.task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f3f2f1;
+    font-size: 12px;
+}
+
+.task-row:last-child {
+    border-bottom: none;
+}
+
+.task-name {
+    font-weight: 600;
+    color: #0070d2;
+    flex: 1;
+}
+
+.task-type {
+    color: #514f4d;
+    margin: 0 16px;
+    background: #f3f2f1;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.task-status {
+    color: #747474;
+    font-weight: bold;
+}

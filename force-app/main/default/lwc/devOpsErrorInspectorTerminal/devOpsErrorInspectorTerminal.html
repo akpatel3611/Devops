@@ -1,0 +1,141 @@
+<template>
+    <!-- Floating Bottom-Right Alert Badge -->
+    <div class="floating-badge-container">
+        <button class={badgeButtonClass} onclick={handleOpenTerminal} title="Open Real-Time DevOps System Error Inspector Terminal">
+            <span class="pulse-indicator" if:true={hasActiveErrors}></span>
+            <lightning-icon icon-name="utility:warning" size="small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
+            <span class="badge-text">Root Cause Terminal</span>
+            <span class="error-count-pill">{totalErrorCount}</span>
+        </button>
+    </div>
+
+    <!-- Live Terminal Inspector Modal / Drawer -->
+    <template if:true={isTerminalOpen}>
+        <section role="dialog" tabindex="-1" aria-labelledby="terminal-heading" aria-modal="true" class="slds-modal slds-fade-in-open slds-modal_large">
+            <div class="slds-modal__container dark-terminal-container">
+                
+                <!-- Terminal Header Bar -->
+                <header class="slds-modal__header dark-terminal-header slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <div class="slds-media slds-media_center">
+                        <div class="slds-media__figure">
+                            <span class="status-dot-active"></span>
+                        </div>
+                        <div class="slds-media__body">
+                            <h2 id="terminal-heading" class="terminal-title">DevOps Real-Time System Error & Root-Cause Inspector</h2>
+                            <p class="terminal-subtitle">🟢 Live Multi-Layer Scanner Active (Org Async Jobs + Browser JS + Limits API)</p>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="terminal-control-btn btn-secondary slds-m-right_x-small" onclick={handleCopyAllLogs} title="Copy Diagnostic Report to Clipboard">
+                            <lightning-icon icon-name="utility:copy" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
+                            Copy Logs
+                        </button>
+                        <button class="terminal-control-btn btn-secondary slds-m-right_x-small" onclick={handleExportLogFile} title="Export Diagnostic Log to TXT File">
+                            <lightning-icon icon-name="utility:download" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
+                            Export TXT
+                        </button>
+                        <button class="terminal-control-btn btn-danger slds-m-right_x-small" onclick={handleClearTerminalLogs} title="Clear Console History">
+                            <lightning-icon icon-name="utility:delete" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
+                            Reset Console
+                        </button>
+                        <button class="terminal-control-btn btn-close" onclick={handleCloseTerminal} title="Close Terminal">
+                            <lightning-icon icon-name="utility:close" size="small" variant="inverse"></lightning-icon>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Filter & Navigation Bar -->
+                <div class="dark-terminal-subbar slds-p-around_small slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <!-- Source Tabs -->
+                    <div class="source-tabs-group">
+                        <button class={tabAllClass} onclick={handleSelectTabAll}>ALL ({totalErrorCount})</button>
+                        <button class={tabOrgClass} onclick={handleSelectTabOrg}>ORG ({orgErrorCount})</button>
+                        <button class={tabBrowserClass} onclick={handleSelectTabBrowser}>BROWSER ({browserErrorCount})</button>
+                        <button class={tabDeploymentClass} onclick={handleSelectTabDeployment}>DEPLOYMENT ({deploymentErrorCount})</button>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="terminal-search-box">
+                        <input type="text" class="terminal-search-input" placeholder="⚡ Filter errors, classes, stack traces..." value={searchFilterKey} oninput={handleSearchInput} />
+                    </div>
+                </div>
+
+                <!-- Main Monospace Terminal Log Body -->
+                <div class="slds-modal__content dark-terminal-body slds-p-around_medium">
+                    <template if:true={isLoadingScan}>
+                        <div class="terminal-loading-bar slds-p-around_medium text-center">
+                            <lightning-spinner alternative-text="Scanning Org and Browser for Real-Time Errors" size="medium" variant="base"></lightning-spinner>
+                            <p class="monospace-text slds-m-top_small text-cyan">Scanning Org Async Jobs, Storage Limits, and Browser Events...</p>
+                        </div>
+                    </template>
+
+                    <template if:false={isLoadingScan}>
+                        <!-- Empty Log State -->
+                        <template if:false={hasFilteredLogs}>
+                            <div class="empty-terminal-state slds-text-align_center slds-p-around_large">
+                                <span class="green-check-icon">✓</span>
+                                <h3 class="monospace-text text-green">System Healthy - Zero Active System Errors Intercepted</h3>
+                                <p class="text-muted slds-m-top_xx-small">Monitoring background jobs, API limits, and LWC UI events in real time.</p>
+                            </div>
+                        </template>
+
+                        <!-- Log Entry Items Loop -->
+                        <template if:true={hasFilteredLogs}>
+                            <template for:each={filteredErrorLogs} for:item="log">
+                                <div key={log.id} class="log-card slds-m-bottom_small">
+                                    
+                                    <!-- Card Header -->
+                                    <div class="log-card-header slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                        <div class="slds-grid slds-grid_vertical-align-center">
+                                            <span class={log.severityBadgeClass}>{log.severity}</span>
+                                            <span class="source-tag slds-m-left_x-small">[{log.source}]</span>
+                                            <span class="component-name slds-m-left_x-small">{log.componentOrClass} ➔ {log.methodName}</span>
+                                        </div>
+                                        <span class="timestamp-text">{log.timestamp}</span>
+                                    </div>
+
+                                    <!-- Raw Error Message -->
+                                    <div class="raw-error-text slds-m-top_x-small">
+                                        <code>{log.rawErrorMessage}</code>
+                                    </div>
+
+                                    <!-- Automated Diagnostic Root Cause Box -->
+                                    <div class="root-cause-box slds-m-top_small slds-p-around_small">
+                                        <div class="cause-heading text-red">
+                                            <strong>[DIAGNOSED ROOT CAUSE]:</strong> {log.diagnosedRootCause}
+                                        </div>
+                                        <div class="fix-heading text-green slds-m-top_xx-small">
+                                            <strong>[RECOMMENDED FIX]:</strong> {log.recommendedFix}
+                                        </div>
+                                    </div>
+
+                                    <!-- Stack Trace Drawer Details -->
+                                    <template if:true={log.stackTrace}>
+                                        <details class="stack-trace-details slds-m-top_x-small">
+                                            <summary class="stack-trace-summary">View Stack Trace & Context Details</summary>
+                                            <pre class="stack-trace-code slds-m-top_xx-small">{log.stackTrace}</pre>
+                                        </details>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+                    </template>
+                </div>
+
+                <!-- Terminal Footer Status Bar -->
+                <footer class="slds-modal__footer dark-terminal-footer slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <div class="footer-status-left monospace-text text-muted">
+                        Total Collected: <strong class="text-white">{totalErrorCount}</strong> | Displaying: <strong class="text-white">{filteredErrorLogsCount}</strong>
+                    </div>
+                    <div class="footer-status-right">
+                        <button class="terminal-control-btn btn-secondary" onclick={handleManualRefreshScan}>
+                            <lightning-icon icon-name="utility:refresh" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
+                            Re-Scan Now
+                        </button>
+                    </div>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

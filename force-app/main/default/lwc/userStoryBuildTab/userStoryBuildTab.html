@@ -1,0 +1,259 @@
+<template>
+    <div class="build-tab-container">
+
+        <!-- ═══════════════════════════════════════════════
+             SECTION 1: User Story Selection (collapsible)
+        ════════════════════════════════════════════════ -->
+        <div class="section-card">
+            <div class="section-header" onclick={handleToggleSelection}>
+                <button class="chevron-btn" type="button">
+                    <span class={chevronClass}></span>
+                </button>
+                <span class="section-title">User Story Selection</span>
+            </div>
+
+            <template if:true={isSelectionExpanded}>
+                <div class="section-body">
+                    <div class="field-row">
+                        <label class="field-label">Metadata Types in Selection</label>
+                        <div class="field-value">{metadataTypesInSelection}</div>
+                    </div>
+                    <div class="field-row" style="margin-top: 8px;">
+                        <label class="field-label">View on Git</label>
+                        <div class="field-value">
+                            <template if:true={gitBranchUrl}>
+                                <a href={gitBranchUrl} target="_blank" rel="noopener noreferrer" style="color: #0070d2; font-weight: bold; text-decoration: underline;">
+                                    <lightning-icon icon-name="utility:open_folder" size="x-small" style="margin-right: 4px;"></lightning-icon>
+                                    View Branch on GitHub ({gitBranchName})
+                                </a>
+                            </template>
+                            <template if:false={gitBranchUrl}>
+                                <span style="color: #888;">No commit branch created yet</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════
+             SECTION 2: User Story Selected Metadata table
+        ════════════════════════════════════════════════ -->
+        <div class="section-card metadata-card">
+
+            <!-- Card top bar: title + action buttons -->
+            <div class="metadata-header">
+                <span class="metadata-title">User Story Selected Metadata</span>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick={handleRefresh}>
+                        <lightning-icon icon-name="utility:refresh" size="x-small" class="btn-icon"></lightning-icon>
+                        Refresh Git Selections
+                    </button>
+                    <button class="btn btn-secondary" onclick={handleAddTestClasses}>
+                        <lightning-icon icon-name="utility:add" size="x-small" class="btn-icon"></lightning-icon>
+                        Add Test Classes
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading spinner -->
+            <template if:true={isLoading}>
+                <div class="loading-row">
+                    <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Table -->
+            <template if:false={isLoading}>
+                <div class="table-scroll-wrapper">
+                    <table class="metadata-table">
+                        <thead>
+                            <tr class="header-row">
+                                <th class="col-checkbox">
+                                    <div class="th-label">MetaData</div>
+                                </th>
+                                <th class="col-checkbox">
+                                    <div class="th-label">Git Upserts</div>
+                                </th>
+                                <th class="col-checkbox">
+                                    <div class="th-label">Git Deletions</div>
+                                </th>
+                                <th class="col-checkbox">
+                                    <div class="th-label">Test Only</div>
+                                </th>
+                                <th class="col-checkbox">
+                                    <div class="th-label">Retrieve Only</div>
+                                </th>
+                                <th class="col-name">
+                                    <div class="th-label">Name</div>
+                                    <input
+                                        type="text"
+                                        class="filter-input"
+                                        placeholder="filter..."
+                                        name="filterName"
+                                        value={filterName}
+                                        onchange={handleFilterChange}
+                                    />
+                                </th>
+                                <th class="col-type">
+                                    <div class="th-label">Type</div>
+                                    <select class="filter-select" name="filterType" onchange={handleFilterChange}>
+                                        <option value="">-- Select Filter --</option>
+                                        <template for:each={typeOptionsFiltered} for:item="opt">
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        </template>
+                                    </select>
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-label">Last Modified By ID</div>
+                                    <select class="filter-select" name="filterUser" onchange={handleFilterChange}>
+                                        <option value="">-- Select Filter --</option>
+                                        <template for:each={userOptionsFiltered} for:item="uopt">
+                                            <option key={uopt.value} value={uopt.value}>{uopt.label}</option>
+                                        </template>
+                                    </select>
+                                </th>
+                                <th class="col-date">
+                                    <div class="th-label">Last Modified Date</div>
+                                    <input
+                                        type="date"
+                                        class="filter-input"
+                                        name="filterLastModifiedDate"
+                                        value={filterLastModifiedDate}
+                                        onchange={handleFilterChange}
+                                    />
+                                </th>
+                                <th class="col-user">
+                                    <div class="th-label">Created By</div>
+                                    <select class="filter-select" name="filterCreatedBy" onchange={handleFilterChange}>
+                                        <option value="">-- Select Filter --</option>
+                                        <template for:each={createdByOptionsFiltered} for:item="copt">
+                                            <option key={copt.value} value={copt.value}>{copt.label}</option>
+                                        </template>
+                                    </select>
+                                </th>
+                                <th class="col-date">
+                                    <div class="th-label">Created Date</div>
+                                    <input
+                                        type="date"
+                                        class="filter-input"
+                                        name="filterCreatedDate"
+                                        value={filterCreatedDate}
+                                        onchange={handleFilterChange}
+                                    />
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template if:true={hasMetadata}>
+                                <template for:each={paginatedMetadata} for:item="row">
+                                    <tr key={row.Id} class="data-row">
+                                        <td class="col-checkbox td-center">
+                                            <input type="checkbox" checked={row.selected} />
+                                        </td>
+                                        <td class="col-checkbox td-center">
+                                            <input type="checkbox" checked={row.gitUpsert} />
+                                        </td>
+                                        <td class="col-checkbox td-center">
+                                            <input type="checkbox" checked={row.gitDeletion} />
+                                        </td>
+                                        <td class="col-checkbox td-center">
+                                            <input type="checkbox" checked={row.testOnly} />
+                                        </td>
+                                        <td class="col-checkbox td-center">
+                                            <input type="checkbox" checked={row.retrieveOnly} />
+                                        </td>
+                                        <td class="col-name">
+                                            <span class="cell-text">{row.Metadata_API_Name__c}</span>
+                                        </td>
+                                        <td class="col-type">
+                                            <span class="cell-text">{row.Metadata_Type__c}</span>
+                                        </td>
+                                        <td class="col-user">
+                                            <span class="cell-text">{row.lastModifiedBy}</span>
+                                        </td>
+                                        <td class="col-date">
+                                            <span class="cell-text">{row.lastModifiedDate}</span>
+                                        </td>
+                                        <td class="col-user">
+                                            <span class="cell-text">{row.createdBy}</span>
+                                        </td>
+                                        <td class="col-date">
+                                            <span class="cell-text">{row.createdDate}</span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </template>
+                            <template if:false={hasMetadata}>
+                                <tr>
+                                    <td colspan="11" class="empty-state">No data to display</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination row -->
+                <div class="pagination-row">
+                    <span class="pagination-label">Go to page:</span>
+                    <input
+                        type="number"
+                        class="page-input"
+                        min="1"
+                        max={totalPages}
+                        value={currentPage}
+                        onchange={handlePageInput}
+                    />
+                    <span class="pagination-sep">|</span>
+                    <span class="pagination-label">Show rows:</span>
+                    <select class="rows-select" onchange={handleRowsPerPageChange}>
+                        <template for:each={rowsPerPageOptions} for:item="ropt">
+                            <option key={ropt.value} value={ropt.value} selected={ropt.selected}>{ropt.label}</option>
+                        </template>
+                    </select>
+                    <span class="pagination-sep">|</span>
+                    <span class="pagination-info">{paginationLabel}</span>
+                    <span class="pagination-sep">|</span>
+                    <button
+                        class="page-nav-btn"
+                        onclick={handlePrevPage}
+                        disabled={isFirstPage}
+                        title="Previous page"
+                    >&lt;</button>
+                    <button
+                        class="page-nav-btn"
+                        onclick={handleNextPage}
+                        disabled={isLastPage}
+                        title="Next page"
+                    >&gt;</button>
+                </div>
+            </template>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════
+             SECTION 3: Deployment Tasks
+        ════════════════════════════════════════════════ -->
+        <div class="section-card tasks-card">
+            <div class="tasks-header">
+                <div class="tasks-title-group">
+                    <span class="task-icon-circle" aria-hidden="true"></span>
+                    <span class="tasks-title">{deploymentTasksTitle}</span>
+                </div>
+                <button class="btn btn-primary" onclick={handleNewTask}>New</button>
+            </div>
+
+            <template if:true={hasTasks}>
+                <div class="task-list">
+                    <template for:each={tasksList} for:item="task">
+                        <div key={task.Id} class="task-row">
+                            <span class="task-name">{task.name}</span>
+                            <span class="task-type">{task.type}</span>
+                            <span class="task-status">{task.status}</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+    </div>
+</template>

@@ -1,0 +1,33 @@
+<template>
+    <template if:true={hasSteps}>
+        <article class="slds-card slds-p-around_medium progress-card">
+            <div class="slds-grid slds-grid_align-spread slds-m-bottom_small">
+                <h2 class="slds-text-heading_small font-semibold">User Story Release Pipeline Path</h2>
+                <div class="slds-badge slds-theme_success status-badge">
+                    Current Location: {sourceEnvName}
+                </div>
+            </div>
+
+            <!-- Custom Horizontal Progress Bar -->
+            <div class="slds-path slds-path_has-coaching">
+                <div class="slds-grid slds-path__track">
+                    <div class="slds-grid slds-path__scroller-container">
+                        <div class="slds-path__scroller">
+                            <div class="slds-path__scroller_inner">
+                                <ul class="slds-path__nav" role="listbox" aria-orientation="horizontal">
+                                    <template for:each={steps} for:item="step">
+                                        <li key={step.name} class={step.className} role="presentation">
+                                            <a class="slds-path__link" href="#" role="option" tabindex="-1">
+                                                <span class="slds-path__title">{step.name}</span>
+                                            </a>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+    </template>
+</template>

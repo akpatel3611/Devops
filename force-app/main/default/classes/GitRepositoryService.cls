@@ -56,8 +56,10 @@ public with sharing class GitRepositoryService {
         String owner,
         String defaultBranch
     ) {
+        System.debug(LoggingLevel.INFO, '[GitRepositoryService.createRepository] START - Name: ' + name + ' | Identifier: ' + identifier + ' | Provider: ' + provider + ' | Owner: ' + owner);
         ValidationResult valRes = validateCreate(name, identifier, url, provider, owner, defaultBranch);
         if (!valRes.success) {
+            System.debug(LoggingLevel.WARN, '[GitRepositoryService.createRepository] Validation Failed - Message: ' + valRes.message + ' | Errors: ' + valRes.errors);
             RepositoryResult errResult = createDefaultResult();
             errResult.message = valRes.message;
             errResult.errors = valRes.errors;
@@ -74,7 +76,9 @@ public with sharing class GitRepositoryService {
             repo.Default_Branch__c = defaultBranch;
             repo.Status__c = STATUS_DRAFT;
             
+            System.debug(LoggingLevel.FINE, '[GitRepositoryService.createRepository] Inserting repository record in Draft status...');
             insert repo;
+            System.debug(LoggingLevel.INFO, '[GitRepositoryService.createRepository] SUCCESS - Created repository ID: ' + repo.Id);
 
             RepositoryResult result = createDefaultResult();
             result.success = true;
@@ -83,6 +87,7 @@ public with sharing class GitRepositoryService {
             result.status = STATUS_DRAFT;
             return result;
         } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[GitRepositoryService.createRepository] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             throw new GitRepositoryServiceException('Failed to create repository: ' + ex.getMessage(), ex);
         }
     }
@@ -100,12 +105,15 @@ public with sharing class GitRepositoryService {
         String owner,
         String defaultBranch
     ) {
+        System.debug(LoggingLevel.INFO, '[GitRepositoryService.updateRepository] START - repositoryId: ' + repositoryId + ' | Name: ' + name);
         if (repositoryId == null) {
+            System.debug(LoggingLevel.WARN, '[GitRepositoryService.updateRepository] Warning: repositoryId is null.');
             throw new GitRepositoryServiceException('Repository ID cannot be null.');
         }
 
         ValidationResult valRes = validateUpdate(repositoryId, name, identifier, url, provider, owner, defaultBranch);
         if (!valRes.success) {
+            System.debug(LoggingLevel.WARN, '[GitRepositoryService.updateRepository] Validation Failed - Errors: ' + valRes.errors);
             RepositoryResult errResult = createDefaultResult();
             errResult.message = valRes.message;
             errResult.errors = valRes.errors;
@@ -122,7 +130,9 @@ public with sharing class GitRepositoryService {
             repo.Repository_Owner__c = owner;
             repo.Default_Branch__c = defaultBranch;
             
+            System.debug(LoggingLevel.FINE, '[GitRepositoryService.updateRepository] Updating repository record ID: ' + repositoryId);
             update repo;
+            System.debug(LoggingLevel.INFO, '[GitRepositoryService.updateRepository] SUCCESS - Updated repository ID: ' + repositoryId);
 
             RepositoryResult result = createDefaultResult();
             result.success = true;
@@ -130,6 +140,7 @@ public with sharing class GitRepositoryService {
             result.repositoryId = repositoryId;
             return result;
         } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[GitRepositoryService.updateRepository] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             throw new GitRepositoryServiceException('Failed to update repository: ' + ex.getMessage(), ex);
         }
     }

@@ -1,0 +1,434 @@
+/* Base Card Container */
+.hierarchy-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    padding: 1.25rem 1.5rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1a202c;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.loading-box {
+    min-height: 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Level 1: Deployment Record Header Bar (Top Banner Above Table Column Labels) */
+.deployment-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 0.75rem;
+    box-sizing: border-box;
+}
+
+.dep-left-group {
+    display: flex;
+    align-items: flex-start;
+}
+
+.dep-right-group {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.btn-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 0.75rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: all 0.1s ease;
+}
+
+.btn-toggle:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.btn-toggle lightning-icon {
+    --slds-c-icon-color-foreground-default: #475569;
+}
+
+.dep-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.dep-title-line {
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.dep-label {
+    color: #0f172a;
+    margin-right: 0.35rem;
+}
+
+.dep-number {
+    color: #0284c7;
+}
+
+.dep-route-line {
+    font-size: 0.775rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.route-arrow {
+    color: #94a3b8;
+}
+
+.components-count-text {
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.8125rem;
+}
+
+/* User Stories Tree Table Container */
+.tree-table {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Unified Grid Header Row (Column Labels Header) */
+.grid-header-row {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #334155;
+    box-sizing: border-box;
+}
+
+/* Column Width Distributions */
+.col-hierarchy {
+    flex: 2.3;
+    min-width: 240px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.col-owner {
+    flex: 1.1;
+    min-width: 110px;
+    color: #475569;
+    font-size: 0.8125rem;
+    box-sizing: border-box;
+}
+
+.col-branch {
+    flex: 1.4;
+    min-width: 140px;
+    color: #64748b;
+    font-size: 0.8125rem;
+    box-sizing: border-box;
+}
+
+.col-status {
+    flex: 1.1;
+    min-width: 120px;
+    box-sizing: border-box;
+}
+
+.col-components {
+    flex: 1.8;
+    min-width: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: #475569;
+    font-size: 0.8125rem;
+    box-sizing: border-box;
+}
+
+.icon-btn-settings {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    color: #64748b;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.icon-btn-settings:hover {
+    background: #f1f5f9;
+}
+
+.icon-btn-settings lightning-icon {
+    --slds-c-icon-color-foreground-default: #64748b;
+}
+
+/* Level 2: User Stories Tree Group */
+.stories-tree-group {
+    position: relative;
+    width: 100%;
+}
+
+.story-node-block {
+    position: relative;
+    width: 100%;
+}
+
+.story-row {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #ffffff;
+    border-bottom: 1px solid #f8fafc;
+    box-sizing: border-box;
+}
+
+.story-row:hover {
+    background: #f8fafc;
+}
+
+.col-hierarchy_story {
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.btn-toggle_story {
+    background: #ffffff;
+}
+
+.story-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+.story-id {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.story-title {
+    color: #475569;
+    font-weight: 400;
+}
+
+.col-components_story {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    box-sizing: border-box;
+}
+
+.col-components_story lightning-button {
+    flex-shrink: 0;
+}
+
+.metadata-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    color: #032d60;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.metadata-count-label {
+    color: #706e6b;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.btn-chevron-end {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    line-height: 1;
+}
+
+.btn-chevron-end:hover {
+    background: #f1f5f9;
+}
+
+.btn-chevron-end lightning-icon {
+    --slds-c-icon-color-foreground-default: #475569;
+}
+
+/* Status Pills */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.status-pill_success,
+.status-pill_inprogress {
+    background: #e6f4ea;
+    color: #137333;
+}
+
+.status-pill_neutral {
+    background: #f1f3f4;
+    color: #3c4043;
+}
+
+.status-pill_failed {
+    background: #fce8e6;
+    color: #c5221f;
+}
+
+/* Level 3: Metadata Components Table */
+.metadata-table-card {
+    margin: 0.5rem 1rem 1rem 2.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.meta-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.meta-grid th {
+    padding: 0.625rem 1rem;
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 700;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.775rem;
+    box-sizing: border-box;
+}
+
+.meta-grid td {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+.meta-grid tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.meta-grid tbody tr:hover {
+    background: #f8fafc;
+}
+
+.th-type, .td-type {
+    width: 30%;
+    color: #334155;
+    text-align: left;
+}
+
+.th-name, .td-name {
+    width: 46%;
+    color: #0f172a;
+    font-weight: 500;
+    text-align: left;
+}
+
+.th-status, .td-status {
+    width: 24%;
+    text-align: right;
+}
+
+/* Metadata Action & Status Table Pills */
+.table-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.table-pill_neutral {
+    background: #f1f3f4;
+    color: #3c4043;
+}
+
+.table-pill_inprogress {
+    background: #e6f4ea;
+    color: #137333;
+}
+
+.table-pill_failed {
+    background: #fce8e6;
+    color: #c5221f;
+}
+
+.empty-meta-box {
+    padding: 0.875rem 1rem;
+    color: #64748b;
+    font-size: 0.8125rem;
+    background: #f8fafc;
+}
+
+.empty-state {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #64748b;
+}
+
+.empty-title {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Responsive Scaling */
+@media (max-width: 52rem) {
+    .grid-header-row,
+    .story-row {
+        flex-wrap: wrap;
+    }
+    
+    .col-hierarchy {
+        min-width: 100%;
+        margin-bottom: 0.35rem;
+    }
+}

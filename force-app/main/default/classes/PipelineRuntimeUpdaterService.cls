@@ -12,41 +12,51 @@ public with sharing class PipelineRuntimeUpdaterService {
         Integer unsupportedCount, 
         String scanStatus
     ) {
-        List<SObject> recordsToUpdate = new List<SObject>();
+        System.debug(LoggingLevel.INFO, '[PipelineRuntimeUpdaterService.updateMetadataStats] START - pipelineId: ' + pipelineId + ' | deploymentRequestId: ' + deploymentRequestId + ' | userStoryId: ' + userStoryId + ' | Status: ' + scanStatus + ' | Total: ' + metadataCount + ' | Deployable: ' + deployableCount);
+        try {
+            List<SObject> recordsToUpdate = new List<SObject>();
 
-        // 1. Update Pipeline__c
-        if (pipelineId != null) {
-            Pipeline__c pipe = new Pipeline__c(Id = pipelineId);
-            putLookupIfValid(pipe, 'Current_User_Story__c', userStoryId);
-            putLookupIfValid(pipe, 'Current_Deployment_Request__c', deploymentRequestId);
-            putIfFieldExists(pipe, 'Metadata_Count__c', metadataCount);
-            putIfFieldExists(pipe, 'Deployable_Count__c', deployableCount);
-            putIfFieldExists(pipe, 'Unsupported_Count__c', unsupportedCount);
-            putIfFieldExists(pipe, 'Last_Scan_Time__c', System.now());
-            putIfFieldExists(pipe, 'Deployment_Runtime_Status__c', scanStatus);
-            recordsToUpdate.add(pipe);
-        }
+            // 1. Update Pipeline__c
+            if (pipelineId != null) {
+                Pipeline__c pipe = new Pipeline__c(Id = pipelineId);
+                putLookupIfValid(pipe, 'Current_User_Story__c', userStoryId);
+                putLookupIfValid(pipe, 'Current_Deployment_Request__c', deploymentRequestId);
+                putIfFieldExists(pipe, 'Metadata_Count__c', metadataCount);
+                putIfFieldExists(pipe, 'Deployable_Count__c', deployableCount);
+                putIfFieldExists(pipe, 'Unsupported_Count__c', unsupportedCount);
+                putIfFieldExists(pipe, 'Last_Scan_Time__c', System.now());
+                putIfFieldExists(pipe, 'Deployment_Runtime_Status__c', scanStatus);
+                recordsToUpdate.add(pipe);
+            }
 
-        // 2. Update Deployment_Request__c
-        if (deploymentRequestId != null) {
-            Deployment_Request__c req = new Deployment_Request__c(Id = deploymentRequestId);
-            putIfFieldExists(req, 'Metadata_Count__c', metadataCount);
-            putIfFieldExists(req, 'Deployable_Count__c', deployableCount);
-            putIfFieldExists(req, 'Unsupported_Count__c', unsupportedCount);
-            putIfFieldExists(req, 'Scan_Completed_Time__c', System.now());
-            recordsToUpdate.add(req);
-        }
+            // 2. Update Deployment_Request__c
+            if (deploymentRequestId != null) {
+                Deployment_Request__c req = new Deployment_Request__c(Id = deploymentRequestId);
+                putIfFieldExists(req, 'Metadata_Count__c', metadataCount);
+                putIfFieldExists(req, 'Deployable_Count__c', deployableCount);
+                putIfFieldExists(req, 'Unsupported_Count__c', unsupportedCount);
+                putIfFieldExists(req, 'Scan_Completed_Time__c', System.now());
+                recordsToUpdate.add(req);
+            }
 
-        // 3. Update User_Story__c
-        if (userStoryId != null) {
-            User_Story__c story = new User_Story__c(Id = userStoryId);
-            putIfFieldExists(story, 'Metadata_Count__c', metadataCount);
-            putIfFieldExists(story, 'Metadata_Scan_Status__c', scanStatus);
-            recordsToUpdate.add(story);
-        }
+            // 3. Update User_Story__c
+            if (userStoryId != null) {
+                User_Story__c story = new User_Story__c(Id = userStoryId);
+                putIfFieldExists(story, 'Metadata_Count__c', metadataCount);
+                putIfFieldExists(story, 'Metadata_Scan_Status__c', scanStatus);
+                recordsToUpdate.add(story);
+            }
 
-        if (!recordsToUpdate.isEmpty()) {
-            update recordsToUpdate;
+            if (!recordsToUpdate.isEmpty()) {
+                System.debug(LoggingLevel.FINE, '[PipelineRuntimeUpdaterService.updateMetadataStats] DML Updating ' + recordsToUpdate.size() + ' runtime records...');
+                update recordsToUpdate;
+                System.debug(LoggingLevel.INFO, '[PipelineRuntimeUpdaterService.updateMetadataStats] SUCCESS - Updated ' + recordsToUpdate.size() + ' runtime records.');
+            } else {
+                System.debug(LoggingLevel.WARN, '[PipelineRuntimeUpdaterService.updateMetadataStats] Warning: No records constructed for update.');
+            }
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[PipelineRuntimeUpdaterService.updateMetadataStats] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw ex;
         }
     }
 

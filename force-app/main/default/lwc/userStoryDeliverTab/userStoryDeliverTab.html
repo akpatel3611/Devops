@@ -1,0 +1,164 @@
+<template>
+    <div class="deliver-tab-container">
+        <!-- Dynamic Stage Promotion Banner -->
+        <template if:true={isPromoteAvailable}>
+            <div class="slds-box slds-m-bottom_medium" style="background: #eef4fe; border: 1px solid #aac6ff; border-radius: 8px; padding: 16px;">
+                <div class="slds-grid slds-grid_vertical-align-center">
+                    <div class="slds-col slds-has-flexi-truncate">
+                        <h2 class="slds-text-heading_small" style="font-weight: bold; color: #004494;">
+                            Ready for Promotion: {currentEnvName} ➔ {targetEnvName}
+                        </h2>
+                        <p class="slds-text-body_small slds-m-top_xx-small" style="color: #444;">
+                            Target Environment: <strong>{targetEnvName}</strong>. Click button to launch stage promotion.
+                        </p>
+                    </div>
+                    <div class="slds-col slds-no-flex">
+                        <lightning-button 
+                            variant="brand" 
+                            label={promoteButtonLabel} 
+                            icon-name="utility:send" 
+                            onclick={handleOpenPromoteModal}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Final Staging Info Banner -->
+        <template if:true={isAtUatStaging}>
+            <div class="slds-box slds-m-bottom_medium" style="background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px; padding: 16px;">
+                <div class="slds-media slds-media_center">
+                    <div class="slds-media__figure">
+                        <lightning-icon icon-name="utility:info" variant="brand" size="small"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <h2 class="slds-text-heading_small" style="font-weight: bold; color: #0d47a1;">Story is in UAT Staging</h2>
+                        <p class="slds-text-body_small slds-m-top_xx-small" style="color: #1565c0;">
+                            This story is ready for Production Release. Release multiple stories together via the <strong>Multi-Story Release Console</strong>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Modal Popup for Promotion -->
+        <template if:true={showPromoteModal}>
+            <c-user-story-promote-modal record-id={recordId} onclose={handleClosePromoteModal}></c-user-story-promote-modal>
+        </template>
+        <!-- Promotions Related List Card -->
+        <div class="slds-card related-list-card">
+            <div class="slds-card__header slds-grid">
+                <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                    <div class="slds-media__figure">
+                        <span class="slds-icon_container slds-icon-standard-promotions" title="Promotions">
+                            <lightning-icon icon-name="standard:promotions" size="small"></lightning-icon>
+                        </span>
+                    </div>
+                    <div class="slds-media__body">
+                        <h2 class="slds-card__header-title">
+                            <a class="slds-card__header-link slds-truncate" title="User Story Promotions">
+                                <span>User Story Promotions ({promotionsCount})</span>
+                            </a>
+                        </h2>
+                    </div>
+                    <div class="slds-no-flex header-actions">
+                        <button class="slds-button slds-button_icon slds-button_icon-border-filled" title="Refresh" onclick={handleRefresh}>
+                            <lightning-icon icon-name="utility:refresh" size="xx-small"></lightning-icon>
+                        </button>
+                        <button class="slds-button slds-button_icon slds-button_icon-border-filled slds-m-left_xx-small" title="Settings">
+                            <lightning-icon icon-name="utility:settings" size="xx-small"></lightning-icon>
+                        </button>
+                        <button class="slds-button slds-button_neutral slds-m-left_x-small" onclick={handleNewPromotion}>New</button>
+                    </div>
+                </header>
+            </div>
+            
+            <div class="slds-card__body">
+                <template if:true={hasPromotions}>
+                    <div class="table-scroll">
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th class="col-check" scope="col">
+                                        <div class="slds-truncate"><input type="checkbox" disabled/></div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Promoted User Story">Promoted User Story</div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Promotion Name">Promotion Name</div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Status">Status</div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Is Back-Promotion">Is Back-Promotion</div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Release">Release</div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Source Env">Source Env</div>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate" title="Target Env">Target Env</div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={promotionsList} for:item="promo">
+                                    <tr key={promo.id} class="slds-hint-parent">
+                                        <td class="col-check">
+                                            <input type="checkbox"/>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">{promo.promotedUserStory}</div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <a onclick={handleNavigateToPromotion} data-id={promo.id} class="table-link">
+                                                    {promo.promotionName}
+                                                </a>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <template if:true={promo.statusBadge}>
+                                                <span class={promo.statusBadgeClass}>{promo.status}</span>
+                                            </template>
+                                            <template if:false={promo.statusBadge}>
+                                                <span class="slds-truncate">—</span>
+                                            </template>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <lightning-input type="checkbox" checked={promo.isBackPromotion} disabled variant="label-hidden"></lightning-input>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">{promo.release}</div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">{promo.sourceEnv}</div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">{promo.targetEnv}</div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="slds-card__footer">
+                        <a onclick={handleViewAll} class="view-all-link">View All</a>
+                    </div>
+                </template>
+                
+                <template if:false={hasPromotions}>
+                    <div class="empty-state">
+                        No promotions yet. Check the 'Promote and Deploy' checkbox in the details page and save to create a promotion.
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

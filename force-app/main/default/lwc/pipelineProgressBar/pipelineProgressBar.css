@@ -1,0 +1,28 @@
+.progress-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+}
+
+.status-badge {
+    border-radius: 16px;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+/* Ensure step label/title remains visible on completed (green) steps */
+.slds-path__item.slds-is-complete .slds-path__title {
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    color: #ffffff !important;
+}
+
+.slds-path__item.slds-is-complete .slds-path__link {
+    color: #ffffff !important;
+}

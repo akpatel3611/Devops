@@ -182,6 +182,69 @@ public with sharing class BulkMetadataService {
         }
     }
 
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> getExistingFields(String objectApiName) {
+        try {
+            List<Map<String, String>> fields = new List<Map<String, String>>();
+            if (String.isBlank(objectApiName)) {
+                return fields;
+            }
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey(objectApiName)) {
+                Schema.DescribeSObjectResult describe = gd.get(objectApiName).getDescribe();
+                Map<String, Schema.SObjectField> fieldMap = describe.fields.getMap();
+
+                Set<String> nonFlsFields = new Set<String>{
+                    'id', 'isdeleted', 'createddate', 'createdbyid',
+                    'lastmodifieddate', 'lastmodifiedbyid', 'systemmodstamp',
+                    'lastactivitydate', 'lastvieweddate', 'lastreferenceddate', 'masterrecordid'
+                };
+
+                for (Schema.SObjectField f : fieldMap.values()) {
+                    Schema.DescribeFieldResult fDescribe = f.getDescribe();
+                    String nameLower = fDescribe.getName().toLowerCase();
+                    if (!nonFlsFields.contains(nameLower) && fDescribe.isPermissionable()) {
+                        Map<String, String> field = new Map<String, String>();
+                        field.put('label', fDescribe.getLabel());
+                        field.put('value', fDescribe.getName());
+                        field.put('dataType', fDescribe.getType().name());
+                        field.put('isCustom', String.valueOf(fDescribe.isCustom()));
+                        fields.add(field);
+                    }
+                }
+            }
+            return fields;
+        } catch (Exception e) {
+            throw newAuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static List<ProfileFlsResult> assignFlsToExistingFields(
+        String objectApiName,
+        List<String> selectedFieldApiNames,
+        List<ProfileFlsAssignment> assignments
+    ) {
+        try {
+            if (String.isBlank(objectApiName) || selectedFieldApiNames == null || selectedFieldApiNames.isEmpty()) {
+                throw new AuraHandledException('Target object and at least one field must be selected.');
+            }
+            List<String> formattedFieldApiNames = new List<String>();
+            for (String fieldName : selectedFieldApiNames) {
+                if (String.isNotBlank(fieldName)) {
+                    if (fieldName.contains('.')) {
+                        formattedFieldApiNames.add(fieldName);
+                    } else {
+                        formattedFieldApiNames.add(objectApiName + '.' + fieldName);
+                    }
+                }
+            }
+            return assignProfileFls(assignments, formattedFieldApiNames);
+        } catch (Exception e) {
+            throw newAuraHandledException(e.getMessage());
+        }
+    }
+
     @AuraEnabled
     public static DeploymentResult deploySchema(ObjectDefinition objDef, List<FieldDefinition> fields) {
         try {

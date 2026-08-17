@@ -18,6 +18,7 @@ export default class CryptoTracker extends LightningElement {
         // PR and Validation test 1
         // QA Validation Check Point Comment
         // QA Validation Check Point Comment 2
+        // QA Validation Check Point Comment 3
     }
 
     async fetchPrices() {

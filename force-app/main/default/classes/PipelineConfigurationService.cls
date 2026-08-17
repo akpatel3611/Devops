@@ -70,7 +70,9 @@ public with sharing class PipelineConfigurationService {
         Id projectId,
         String description
     ) {
+        System.debug(LoggingLevel.INFO, '[PipelineConfigurationService.createPipeline] START - Name: ' + name + ' | Type: ' + type + ' | ProjectId: ' + projectId);
         if (String.isBlank(name)) {
+            System.debug(LoggingLevel.WARN, '[PipelineConfigurationService.createPipeline] Warning: Pipeline name is mandatory.');
             return createFailedPipelineResult('Pipeline name is mandatory.');
         }
 
@@ -82,7 +84,10 @@ public with sharing class PipelineConfigurationService {
             pipe.Description__c = description;
             pipe.Pipeline_Status__c = PIPELINE_STATUS_DRAFT;
             pipe.Active__c = false;
+            
+            System.debug(LoggingLevel.FINE, '[PipelineConfigurationService.createPipeline] Inserting pipeline record in Draft status...');
             insert pipe;
+            System.debug(LoggingLevel.INFO, '[PipelineConfigurationService.createPipeline] SUCCESS - Created pipeline ID: ' + pipe.Id);
 
             PipelineResult res = new PipelineResult();
             res.success = true;
@@ -91,6 +96,7 @@ public with sharing class PipelineConfigurationService {
             res.errors = new List<String>();
             return res;
         } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[PipelineConfigurationService.createPipeline] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             return createFailedPipelineResult('Failed to create pipeline: ' + ex.getMessage());
         }
     }
@@ -105,10 +111,13 @@ public with sharing class PipelineConfigurationService {
         Id projectId,
         String description
     ) {
+        System.debug(LoggingLevel.INFO, '[PipelineConfigurationService.updatePipeline] START - pipelineId: ' + pipelineId + ' | Name: ' + name);
         if (pipelineId == null) {
+            System.debug(LoggingLevel.WARN, '[PipelineConfigurationService.updatePipeline] Warning: Pipeline ID is mandatory.');
             return createFailedPipelineResult('Pipeline ID is mandatory.');
         }
         if (String.isBlank(name)) {
+            System.debug(LoggingLevel.WARN, '[PipelineConfigurationService.updatePipeline] Warning: Pipeline name is mandatory.');
             return createFailedPipelineResult('Pipeline name is mandatory.');
         }
 

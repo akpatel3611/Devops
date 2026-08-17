@@ -81,6 +81,7 @@ public with sharing class GitHubRecordService {
      * Processes one pull request webhook.
      */
     public static RecordResult processPullRequest(GitHubRecordData requestData) {
+        System.debug(LoggingLevel.INFO, '[GitHubRecordService.processPullRequest] START - PR Number: ' + (requestData != null && requestData.pullRequestNumber != null ? String.valueOf(requestData.pullRequestNumber) : 'null'));
         List<RecordResult> results =
             processPullRequests(new List<GitHubRecordData>{ requestData });
         return results.isEmpty() ? buildResult(STATUS_SKIPPED, 'No pull request data processed.') : results[0];
@@ -90,10 +91,12 @@ public with sharing class GitHubRecordService {
      * Processes pull request webhook records in a bulk-safe flow.
      */
     public static List<RecordResult> processPullRequests(List<GitHubRecordData> requestList) {
+        System.debug(LoggingLevel.INFO, '[GitHubRecordService.processPullRequests] START - Count: ' + (requestList != null ? requestList.size() : 0));
         List<RecordResult> results = new List<RecordResult>();
         List<GitHubRecordData> validRequests = removeEmptyRequests(requestList);
 
         if (validRequests.isEmpty()) {
+            System.debug(LoggingLevel.WARN, '[GitHubRecordService.processPullRequests] Warning: No valid requests found.');
             results.add(buildResult(STATUS_SKIPPED, 'No valid GitHub pull request data received.'));
             return results;
         }
