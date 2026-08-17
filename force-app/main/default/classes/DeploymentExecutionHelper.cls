@@ -26,10 +26,12 @@ public with sharing class DeploymentExecutionHelper {
         Id credentialId
     ) {
         if (requestId == null) {
+            System.debug(LoggingLevel.WARN, '[DeploymentExecutionHelper.applyRuntimeState] Warning: requestId is null.');
             return;
         }
 
         try {
+            System.debug(LoggingLevel.INFO, '[DeploymentExecutionHelper.applyRuntimeState] Applying state for requestId=' + requestId + ' | Status=' + status);
             Deployment_Request__c req = new Deployment_Request__c(Id = requestId);
             Boolean hasChanges = false;
             
@@ -52,9 +54,10 @@ public with sharing class DeploymentExecutionHelper {
             
             if (hasChanges) {
                 update req;
+                System.debug(LoggingLevel.DEBUG, '[DeploymentExecutionHelper.applyRuntimeState] Updated record ' + requestId);
             }
         } catch (Exception ex) {
-            System.debug(LoggingLevel.ERROR, 'DeploymentExecutionHelper.applyRuntimeState failed: ' + ex.getMessage());
+            System.debug(LoggingLevel.ERROR, '[DeploymentExecutionHelper.applyRuntimeState] Failed: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             throw ex;
         }
     }
@@ -65,18 +68,21 @@ public with sharing class DeploymentExecutionHelper {
      */
     public static void writeLog(Id requestId, String logType, String message) {
         if (requestId == null || String.isBlank(message)) {
+            System.debug(LoggingLevel.FINE, '[DeploymentExecutionHelper.writeLog] Skipping blank message or null requestId.');
             return;
         }
 
         try {
+            System.debug(LoggingLevel.INFO, '[DeploymentExecutionHelper.writeLog] Write log [' + logType + '] for requestId=' + requestId + ' :: ' + message);
             Deployment_Log__c log = new Deployment_Log__c();
             log.Deployment_Request__c = requestId;
             log.Log_Type__c = (logType != null) ? logType : LOG_INFO;
+            log.Name = ('Log ' + log.Log_Type__c + ' ' + System.now().getTime()).left(80);
             log.Message__c = message.left(255);
             log.Timestamp__c = System.now();
             insert log;
         } catch (Exception ex) {
-            System.debug(LoggingLevel.ERROR, 'DeploymentExecutionHelper.writeLog failed: ' + ex.getMessage());
+            System.debug(LoggingLevel.ERROR, '[DeploymentExecutionHelper.writeLog] Failed: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
         }
     }
 

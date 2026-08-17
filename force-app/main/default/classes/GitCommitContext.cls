@@ -13,4 +13,5 @@ public class GitCommitContext {
     @AuraEnabled public List<GitMetadataItem> selectedMetadata {get;set;}
     @AuraEnabled public String featureBranchName {get;set;}
     @AuraEnabled public Datetime executionTimestamp {get;set;}
+    @AuraEnabled public Id sourceCredentialId {get;set;}
 }

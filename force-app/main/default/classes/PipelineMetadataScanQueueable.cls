@@ -30,8 +30,11 @@ public with sharing class PipelineMetadataScanQueueable implements Queueable, Da
      * Executes the asynchronous metadata scanning phase.
      */
     public void execute(QueueableContext context) {
+        Id jobId = (context != null) ? context.getJobId() : null;
+        System.debug(LoggingLevel.INFO, '[PipelineMetadataScanQueueable.execute] START - JobId: ' + jobId + ' | pipelineId: ' + pipelineId + ' | deploymentRequestId: ' + deploymentRequestId + ' | userStoryId: ' + userStoryId);
         try {
             if (String.isBlank(requestDataJson)) {
+                System.debug(LoggingLevel.ERROR, '[PipelineMetadataScanQueueable.execute] Request data payload is missing.');
                 throw new PipelineMetadataScanQueueableException('Request data payload is missing.');
             }
             
@@ -41,15 +44,20 @@ public with sharing class PipelineMetadataScanQueueable implements Queueable, Da
                     requestDataJson,
                     GitHubRecordService.GitHubRecordData.class
                 );
+                System.debug(LoggingLevel.DEBUG, '[PipelineMetadataScanQueueable.execute] Deserialized PR payload - PR: ' + requestData.pullRequestNumber + ' | Repo: ' + requestData.repositoryName);
             } catch (Exception ex) {
+                System.debug(LoggingLevel.ERROR, '[PipelineMetadataScanQueueable.execute] Failed to deserialize payload: ' + ex.getMessage());
                 throw new PipelineMetadataScanQueueableException('Failed to deserialize request data: ' + ex.getMessage());
             }
 
             // Step 1: Fetch changed files from GitHub REST API (Callout)
+            System.debug(LoggingLevel.FINE, '[PipelineMetadataScanQueueable.execute] Fetching changed files from GitHub via GitHubPullRequestFilesService...');
             List<MetadataScannerService.ChangedFile> files = 
                 GitHubPullRequestFilesService.fetchChangedFiles(requestData);
+            System.debug(LoggingLevel.DEBUG, '[PipelineMetadataScanQueueable.execute] Fetched ' + (files != null ? files.size() : 0) + ' changed files from GitHub.');
 
             // Step 2: Trigger metadata scanning and classification processor
+            System.debug(LoggingLevel.FINE, '[PipelineMetadataScanQueueable.execute] Triggering PipelineMetadataProcessor.process...');
             PipelineMetadataProcessor.PipelineProcessorResult result = 
                 PipelineMetadataProcessor.process(
                     pipelineId,
@@ -58,6 +66,7 @@ public with sharing class PipelineMetadataScanQueueable implements Queueable, Da
                     files,
                     'GitHub'
                 );
+            System.debug(LoggingLevel.INFO, '[PipelineMetadataScanQueueable.execute] SUCCESS - JobId: ' + jobId + ' completed processing.');
 
             if (result != null && !result.success) {
                 String errorMsg = (result.errors != null && !result.errors.isEmpty()) 

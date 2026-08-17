@@ -65,7 +65,9 @@ public with sharing class CommitChangesRuntimeService {
      */
     @AuraEnabled
     public static CommitResult commitChanges(Id userStoryId, String commitMessage) {
+        System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.commitChanges] START - userStoryId: ' + userStoryId + ' | hasCommitMessage: ' + String.isNotBlank(commitMessage));
         if (String.isBlank(commitMessage) || String.isBlank(commitMessage.trim())) {
+            System.debug(LoggingLevel.WARN, '[CommitChangesRuntimeService.commitChanges] Warning: commitMessage is blank for userStoryId: ' + userStoryId);
             return createResult(
                 false,
                 'Commit message cannot be null or empty.',
@@ -83,10 +85,12 @@ public with sharing class CommitChangesRuntimeService {
         try {
             // Step 1: Build Runtime Context (Loads all data via single SOQL step to avoid duplicates)
             RuntimeContext context = buildRuntimeContext(userStoryId);
+            System.debug(LoggingLevel.DEBUG, '[CommitChangesRuntimeService.commitChanges] Runtime context built - deploymentRequestId: ' + (context.deploymentRequest == null ? null : context.deploymentRequest.Id) + ' | selectedMetadataCount: ' + (context.selectedMetadata == null ? 0 : context.selectedMetadata.size()));
 
             // Step 2: Perform validations on pre-built context
             CommitResult valResult = validateCommitRequest(context);
             if (!valResult.success) {
+                System.debug(LoggingLevel.WARN, '[CommitChangesRuntimeService.commitChanges] Warning: validation failed for userStoryId: ' + userStoryId + ' | errors: ' + valResult.errors);
                 return valResult;
             }
 
@@ -97,55 +101,188 @@ public with sharing class CommitChangesRuntimeService {
             String branchName = 'feature/' + identifier;
             context.featureBranch = branchName;
 
-            // Step 4: Invoke Provider Interface (No mock fallback allowed)
+            // Step 4: Invoke Provider implementation to execute real Git branch creation & Pull Request opening!
             GitCommitResult provRes = invokeCommitProvider(context, commitMessage);
-            Boolean isProviderValid = provRes.success && 
-                                     String.isNotBlank(provRes.commitId) && 
-                                     String.isNotBlank(provRes.pullRequestNumber) && 
-                                     String.isNotBlank(provRes.pullRequestUrl);
-            if (!isProviderValid) {
+            if (!provRes.success) {
+                String errMsg = (provRes.errors != null && !provRes.errors.isEmpty()) ? provRes.errors[0] : 'Git Commit provider execution failed.';
+                System.debug(LoggingLevel.ERROR, '[CommitChangesRuntimeService.commitChanges] Git provider failed - userStoryId: ' + userStoryId + ' | error: ' + errMsg);
                 updateRuntimeStatus(userStoryId, BUILD_STATUS_NOT_STARTED, PR_STATUS_FAILED, null, null);
-                List<String> providerErrors = provRes.errors != null ? provRes.errors : new List<String>();
-                if (providerErrors.isEmpty()) {
-                    providerErrors.add('Git provider returned incomplete execution information.');
-                }
-                return createResult(
-                    false,
-                    providerErrors[0],
-                    userStoryId,
-                    context.deploymentRequest != null ? context.deploymentRequest.Id : null,
-                    branchName,
-                    null,
-                    null,
-                    null,
-                    BUILD_STATUS_NOT_STARTED,
-                    providerErrors
-                );
+                return createResult(false, errMsg, userStoryId, null, null, null, null, null, PR_STATUS_FAILED, provRes.errors);
             }
+            System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.commitChanges] Git provider success - branchName: ' + branchName + ' | prNumber: ' + provRes.pullRequestNumber + ' | prUrl: ' + provRes.pullRequestUrl);
 
-            // Step 5: Update Salesforce runtime state (User Story & Deployment Request)
-            updateRuntimeStatus(userStoryId, BUILD_STATUS_IN_PROGRESS, PR_STATUS_PENDING_REVIEW, branchName, null);
+            // Save PR Number and PR URL onto User Story
+            User_Story__c storyUpdate = new User_Story__c(Id = userStoryId);
+            storyUpdate.Build_Status__c = BUILD_STATUS_COMPLETED;
+            storyUpdate.PR_Status__c = PR_STATUS_OPEN;
+            storyUpdate.Feature_Branch__c = branchName;
+            storyUpdate.PR_Number__c = provRes.pullRequestNumber;
+            storyUpdate.PR_Url__c = provRes.pullRequestUrl;
+            storyUpdate.Commit_Time__c = System.now();
+            update storyUpdate;
 
             Deployment_Request__c dreq = context.deploymentRequest;
             dreq.Status__c = DEPLOYMENT_STATUS_WAITING_PR_APPROVAL;
+            dreq.Remarks__c = commitMessage; 
             update dreq;
+            System.debug(LoggingLevel.DEBUG, '[CommitChangesRuntimeService.commitChanges] DML updates completed - userStoryId: ' + userStoryId + ' | deploymentRequestId: ' + dreq.Id);
 
+            System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.commitChanges] SUCCESS - userStoryId: ' + userStoryId + ' | deploymentRequestId: ' + dreq.Id);
             return createResult(
                 true,
-                'Commit changes process initiated successfully.',
+                'Commit changes process completed successfully. Branch & Pull Request created!',
                 userStoryId,
                 dreq.Id,
                 branchName,
                 provRes.commitId,
                 provRes.pullRequestNumber,
                 provRes.pullRequestUrl,
-                PR_STATUS_PENDING_REVIEW,
+                PR_STATUS_OPEN,
                 new List<String>()
             );
 
         } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[CommitChangesRuntimeService.commitChanges] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             List<String> errs = new List<String>{ ex.getMessage() };
             return createResult(false, 'Exception occurred during commit: ' + ex.getMessage(), userStoryId, null, null, null, null, null, null, errs);
+        }
+    }
+
+    /**
+     * Preview the expanded Git payload and file tree for a User Story before committing.
+     */
+    @AuraEnabled
+    public static List<GitMetadataItem> getPayloadPreview(Id userStoryId) {
+        System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.getPayloadPreview] START - userStoryId: ' + userStoryId);
+        try {
+            RuntimeContext context = buildRuntimeContext(userStoryId);
+            List<User_Story_Metadata__c> metaList = context.selectedMetadata;
+            System.debug(LoggingLevel.DEBUG, '[CommitChangesRuntimeService.getPayloadPreview] Runtime metadata loaded - count: ' + (metaList == null ? 0 : metaList.size()));
+            if (metaList == null || metaList.isEmpty()) {
+                metaList = [
+                    SELECT Id, Metadata_API_Name__c, Metadata_Type__c, Action__c, File_Path__c
+                    FROM User_Story_Metadata__c
+                    WHERE User_Story__c = :userStoryId
+                    ORDER BY Metadata_Type__c ASC, Metadata_API_Name__c ASC
+                ];
+                System.debug(LoggingLevel.DEBUG, '[CommitChangesRuntimeService.getPayloadPreview] Fallback metadata query completed - count: ' + metaList.size());
+            }
+
+            if (metaList.isEmpty()) {
+                System.debug(LoggingLevel.WARN, '[CommitChangesRuntimeService.getPayloadPreview] Warning: no metadata selected for userStoryId: ' + userStoryId);
+                return new List<GitMetadataItem>();
+            }
+
+            List<GitMetadataItem> items = new List<GitMetadataItem>();
+            for (User_Story_Metadata__c m : metaList) {
+                GitMetadataItem item = new GitMetadataItem();
+                item.metadataType = m.Metadata_Type__c;
+                item.apiName = m.Metadata_API_Name__c;
+                item.filePath = m.File_Path__c;
+                item.deploymentAction = String.isNotBlank(m.Action__c) ? m.Action__c : 'Add';
+                items.add(item);
+            }
+
+            Id sourceCredId = (context.deploymentRequest != null && context.deploymentRequest.Credential__c != null)
+                ? context.deploymentRequest.Credential__c
+                : (context.userStory != null ? context.userStory.Credential__c : null);
+
+            String sourceUrl = null;
+            String sourceToken = null;
+            if (sourceCredId != null) {
+                try {
+                    MetadataAuthenticationService.OAuthTokenResponse srcTok =
+                        MetadataAuthenticationService.generateAccessToken(sourceCredId);
+                    if (srcTok != null && String.isNotBlank(srcTok.accessToken) && String.isNotBlank(srcTok.instanceUrl)) {
+                        sourceToken = srcTok.accessToken;
+                        sourceUrl = srcTok.instanceUrl;
+                    }
+                } catch (Exception ex) {
+                    System.debug(LoggingLevel.WARN, 'getPayloadPreview auth error: ' + ex.getMessage());
+                }
+            }
+
+            List<GitMetadataItem> previewItems = GitHubCommitProvider.previewPayload(items, sourceUrl, sourceToken);
+            System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.getPayloadPreview] SUCCESS - userStoryId: ' + userStoryId + ' | previewItemCount: ' + previewItems.size());
+            return previewItems;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[CommitChangesRuntimeService.getPayloadPreview] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            return new List<GitMetadataItem>();
+        }
+    }
+
+    /**
+     * Executes check-only validation against target org prior to Git commit.
+     */
+    @AuraEnabled
+    public static Map<String, Object> validatePreCommit(Id userStoryId) {
+        System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.validatePreCommit] START - userStoryId: ' + userStoryId);
+        Map<String, Object> res = new Map<String, Object>();
+        try {
+            List<Deployment_Request__c> reqs = [
+                SELECT Id, Status__c, Target_Environment__c, Source_Environment__c
+                FROM Deployment_Request__c
+                WHERE User_Story__c = :userStoryId
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
+            System.debug(LoggingLevel.DEBUG, '[CommitChangesRuntimeService.validatePreCommit] Deployment request query completed - count: ' + reqs.size());
+
+            if (reqs.isEmpty()) {
+                System.debug(LoggingLevel.WARN, '[CommitChangesRuntimeService.validatePreCommit] Warning: no deployment request found for userStoryId: ' + userStoryId);
+                res.put('success', false);
+                res.put('message', 'No draft deployment request record found for this User Story. Please select metadata components first.');
+                return res;
+            }
+
+            Id reqId = reqs[0].Id;
+            DeploymentRuntimeService.startDeployment(reqId, 'Validate');
+
+            res.put('success', true);
+            res.put('requestId', reqId);
+            res.put('message', 'Validation started successfully.');
+            System.debug(LoggingLevel.INFO, '[CommitChangesRuntimeService.validatePreCommit] SUCCESS - validation started. userStoryId: ' + userStoryId + ' | requestId: ' + reqId);
+            return res;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[CommitChangesRuntimeService.validatePreCommit] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            res.put('success', false);
+            res.put('message', ex.getMessage());
+            return res;
+        }
+    }
+
+    /**
+     * Executes the actual GitHub branch creation, file commit, and Pull Request creation post successful deployment.
+     */
+    public static void executePostDeploymentGitCommit(Id userStoryId, Id requestId, String commitMessage) {
+        try {
+            RuntimeContext context = buildRuntimeContext(userStoryId);
+            String identifier = String.isNotBlank(context.userStory.Story_Number__c) 
+                ? context.userStory.Story_Number__c 
+                : context.userStory.Id;
+            String branchName = 'feature/' + identifier;
+            context.featureBranch = branchName;
+
+            GitCommitResult provRes = invokeCommitProvider(context, commitMessage);
+            if (provRes.success) {
+                // Update User Story with final Git information
+                updateRuntimeStatus(userStoryId, BUILD_STATUS_COMPLETED, PR_STATUS_OPEN, branchName, STORY_STATUS_READY_FOR_REVIEW);
+
+                Deployment_Request__c dreq = new Deployment_Request__c(
+                    Id = requestId,
+                    Remarks__c = 'Git sync completed successfully. PR: ' + provRes.pullRequestUrl
+                );
+                update dreq;
+            } else {
+                String errMsg = provRes.errors != null && !provRes.errors.isEmpty() ? provRes.errors[0] : 'Git provider failed.';
+                Deployment_Request__c dreq = new Deployment_Request__c(
+                    Id = requestId,
+                    Remarks__c = 'Git post-deployment sync failed: ' + errMsg
+                );
+                update dreq;
+            }
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, 'executePostDeploymentGitCommit exception: ' + ex.getMessage());
         }
     }
 
@@ -318,6 +455,7 @@ public with sharing class CommitChangesRuntimeService {
 
         List<User_Story__c> stories = [
             SELECT Id, Name, Title__c, Story_Status__c, Project__c, Pipeline__c, Source_Environment__c, Build_Status__c, Story_Number__c,
+                   Release__c, Promotion__c, Credential__c,
                    Source_Environment__r.Name, Source_Environment__r.Status__c, Source_Environment__r.Is_Source_Enabled__c,
                    Project__r.Git_Repository__c, Project__r.Git_Repository__r.Status__c,
                    Project__r.Git_Repository__r.Repository_Name__c, Project__r.Git_Repository__r.GitHub_URL__c,
@@ -339,7 +477,7 @@ public with sharing class CommitChangesRuntimeService {
         Git_Repository__c repo = (proj != null) ? proj.Git_Repository__r : null;
 
         List<Deployment_Request__c> requests = [
-            SELECT Id, Status__c, User_Story__c
+            SELECT Id, Status__c, User_Story__c, Target_Environment__c, Source_Environment__c, Pipeline__c, Release__c, Credential__c
             FROM Deployment_Request__c
             WHERE User_Story__c = :userStoryId
             ORDER BY CreatedDate DESC
@@ -377,6 +515,9 @@ public with sharing class CommitChangesRuntimeService {
             providerContext.developerUsername = context.developer;
             providerContext.featureBranchName = context.featureBranch;
             providerContext.executionTimestamp = context.executionTimestamp;
+            providerContext.sourceCredentialId = (context.deploymentRequest != null && context.deploymentRequest.Credential__c != null)
+                ? context.deploymentRequest.Credential__c
+                : (context.userStory != null ? context.userStory.Credential__c : null);
 
             List<GitMetadataItem> items = new List<GitMetadataItem>();
             if (context.selectedMetadata != null) {

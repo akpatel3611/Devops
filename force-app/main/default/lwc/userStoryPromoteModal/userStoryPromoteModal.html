@@ -1,0 +1,216 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container custom-modal-container">
+            <header class="slds-modal__header modal-header-custom">
+                <h2 class="slds-modal__title slds-hyphenate modal-title-custom">
+                    <template if:false={isExecuting}>Promote & Deploy to Next Stage</template>
+                    <template if:true={isExecuting}>Deployment Execution Console — {headerText}</template>
+                </h2>
+            </header>
+            
+            <div class="slds-modal__content slds-p-around_medium modal-content-custom">
+                <!-- State 1: Loading Context -->
+                <template if:true={isLoading}>
+                    <div class="slds-p-around_large slds-text-align_center">
+                        <lightning-spinner alternative-text="Resolving pipeline stages..." size="small" variant="brand"></lightning-spinner>
+                        <p class="slds-m-top_small console-hint">Resolving dynamic pipeline stage context...</p>
+                    </div>
+                </template>
+
+                <!-- State 2: Confirmation Prompt (Before Execution) -->
+                <template if:false={isLoading}>
+                    <template if:false={isExecuting}>
+                        <template if:true={isPromoteAvailable}>
+                            <div class="slds-p-around_medium slds-text-align_center">
+                                <p class="prompt-text">
+                                    Promote metadata from current environment to <strong class="target-highlight">{targetEnv}</strong>?
+                                </p>
+                                <div class="progression-card">
+                                    <p class="progression-title">Pipeline Progression</p>
+                                    <p class="progression-text">
+                                        {headerText}
+                                    </p>
+                                    <div class="slds-m-top_small slds-p-around_x-small" style="background: #ffffff; border: 1px dashed #0070d2; border-radius: 6px;">
+                                        <p style="font-size: 0.8rem; font-weight: 600; color: #1e293b;">
+                                            🔗 Target GitHub Branch Compare: 
+                                            <a href={prUrl} target="_blank" style="color: #0284c7; text-decoration: underline; margin-left: 4px;">
+                                                {baseBranch} ➔ {targetBranch} PR View
+                                            </a>
+                                        </p>
+                                        <div style="display: flex; justify-content: center; gap: 8px; margin-top: 6px;">
+                                            <span style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
+                                                ✓ PR Target: {targetBranch}
+                                            </span>
+                                            <span style="font-size: 0.75rem; background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
+                                                ✓ Review Bypassed (Fast-Track)
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="console-hint">
+                                    Clicking Confirm Merge & Deploy will execute target branch merge and launch the live execution console.
+                                </p>
+                            </div>
+                        </template>
+
+                        <template if:false={isPromoteAvailable}>
+                            <div class="slds-p-around_medium slds-text-align_center">
+                                <div class="slds-illustration slds-illustration_small">
+                                    <h3 class="slds-text-heading_small slds-m-top_small">Story at Final Staging Stage</h3>
+                                    <p class="slds-text-body_regular slds-m-top_xx-small">
+                                        This story is already at <strong>{currentEnv}</strong>. Use the Multi-Story Release Console to package and release multiple stories to Production.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+
+                    <!-- State 3: Live In-Modal Execution Console -->
+                    <template if:true={isExecuting}>
+                        <div class="execution-console-body slds-p-around_small">
+                            <!-- Dynamic GitHub PR & Conflict Status Banner Card -->
+                            <div class="slds-m-bottom_medium">
+                                <div style={bannerConfig.style}>
+                                    <div>
+                                        <span style="font-weight: 700; font-size: 0.9rem;">{bannerConfig.title}</span>
+                                        <p style="font-size: 0.8rem; margin-top: 2px;">{bannerConfig.subtitle}</p>
+                                    </div>
+                                    <template if:true={bannerConfig.showLink}>
+                                        <a href={prUrl} target="_blank" class="step-btn step-btn-outline" style="font-size: 0.75rem; text-decoration: none;">
+                                            {bannerConfig.linkLabel}
+                                        </a>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Progress Status Header -->
+                            <div class="slds-media slds-media_center slds-m-bottom_small">
+                                <div class="slds-media__figure">
+                                    <template if:true={isExecutingInProgress}>
+                                        <div style="position: relative; width: 32px; height: 32px; display: inline-block;">
+                                            <lightning-spinner size="small" variant="brand"></lightning-spinner>
+                                        </div>
+                                    </template>
+                                    <template if:true={isExecutionSuccess}>
+                                        <lightning-icon icon-name="utility:success" variant="success" size="medium"></lightning-icon>
+                                    </template>
+                                    <template if:true={isExecutionFailed}>
+                                        <lightning-icon icon-name="utility:error" variant="error" size="medium"></lightning-icon>
+                                    </template>
+                                </div>
+                                <div class="slds-media__body">
+                                    <h3 class="slds-text-heading_small" style="font-weight: 700; color: #080707;">{executionStatusText}</h3>
+                                    <p class="console-hint">Target: {targetEnv} Environment</p>
+                                </div>
+                            </div>
+
+                            <!-- Live Steps List -->
+                            <div class="steps-console-box">
+                                <template for:each={steps} for:item="step">
+                                    <div key={step.id} class="step-row slds-grid slds-grid_vertical-align-center">
+                                        <span class="slds-m-right_small" style="font-weight: bold;">
+                                            <template if:true={step.isComplete}>
+                                                <span style="color: #0e6219; font-size: 1rem;">✓</span>
+                                            </template>
+                                            <template if:true={step.isFailed}>
+                                                <span style="color: #c20c03; font-size: 1rem;">✕</span>
+                                            </template>
+                                            <template if:true={step.isCurrent}>
+                                                <span style="color: #0070d2; font-size: 1rem;">▸</span>
+                                            </template>
+                                        </span>
+                                        <span class="slds-text-body_small" style="color: #080707; font-weight: 500;">{step.name}</span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Deep Debug Error Panel if Failed -->
+                            <template if:true={isExecutionFailed}>
+                                <div class="slds-m-top_medium slds-p-around_medium slds-theme_error slds-box" style="border-radius: 6px; border-left: 6px solid #c20c03;">
+                                    <h4 class="slds-text-heading_small" style="font-weight: bold; color: #fff;">Deployment Failed — Root Cause Analysis</h4>
+                                    <p class="slds-text-body_small slds-m-top_xx-small" style="color: #fff;">{failedErrorMessage}</p>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+            </div>
+
+            <footer class="slds-modal__footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <template if:false={isExecuting}>
+                    <div>
+                        <button class="step-btn step-btn-neutral" onclick={handleCancel}>Cancel</button>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <template if:true={isPromoteAvailable}>
+                            <template if:false={isPayloadInspected}>
+                                <button class="step-btn step-btn-outline" onclick={handleInspectPayload} disabled={isInspectPayloadDisabled}>Inspect Payload</button>
+                            </template>
+                            <template if:true={isPayloadInspected}>
+                                <button class="step-btn step-btn-success" onclick={handleInspectPayload} disabled>✓ Payload Inspected</button>
+                            </template>
+                            <button class="step-btn step-btn-commit" onclick={handleConfirmPromote} disabled={isDeployDisabled}>{buttonLabel}</button>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={isExecuting}>
+                    <div></div>
+                    <button class="step-btn step-btn-neutral" onclick={handleCloseConsole} disabled={isExecutingInProgress}>Close Console</button>
+                </template>
+            </footer>
+
+            <!-- Inner Payload Inspector Console Modal -->
+            <template if:true={isPayloadConsoleOpen}>
+                <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open slds-modal_large" style="z-index: 9999;">
+                    <div class="slds-modal__container" style="max-width: 800px;">
+                        <header class="slds-modal__header" style="background: #0f172a; color: #f8fafc; border-bottom: 1px solid #334155; border-radius: 8px 8px 0 0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+                            <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700; font-size: 1.1rem; color: #38bdf8;">
+                                🖥️ Target Git Payload Inspector ({currentEnv} ➔ {targetEnv})
+                            </h2>
+                            <span style="font-size: 0.8rem; background: #1e293b; padding: 4px 10px; border-radius: 12px; color: #94a3b8;">
+                                Total Files: {payloadFileCount}
+                            </span>
+                        </header>
+                        <div class="slds-modal__content slds-p-around_medium" style="background: #0f172a; color: #e2e8f0; font-family: monospace;">
+                            <template if:true={isLoadingPayload}>
+                                <div class="slds-align_absolute-center slds-p-around_large">
+                                    <lightning-spinner alternative-text="Generating payload preview" size="medium" variant="base"></lightning-spinner>
+                                </div>
+                            </template>
+                            <template if:false={isLoadingPayload}>
+                                <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px; max-height: 350px; overflow-y: auto;">
+                                    <table class="slds-table slds-table_cell-buffer custom-dark-table" style="background: transparent; color: #e2e8f0;">
+                                        <thead>
+                                            <tr style="border-bottom: 1px solid #334155;">
+                                                <th style="color: #94a3b8; font-size: 0.8rem;">#</th>
+                                                <th style="color: #94a3b8; font-size: 0.8rem;">Metadata Type</th>
+                                                <th style="color: #94a3b8; font-size: 0.8rem;">API Name</th>
+                                                <th style="color: #94a3b8; font-size: 0.8rem;">Target Git File Path</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={payloadPreviewItems} for:item="pItem" for:index="pIdx">
+                                                <tr key={pItem.filePath} style="border-bottom: 1px solid #1e293b;">
+                                                    <td style="color: #64748b; font-size: 0.8rem;">{pIdx}</td>
+                                                    <td><span style="color: #a7f3d0; font-size: 0.85rem;">{pItem.metadataType}</span></td>
+                                                    <td><span style="color: #fef08a; font-size: 0.85rem;">{pItem.apiName}</span></td>
+                                                    <td><span style="color: #38bdf8; font-weight: bold; font-size: 0.85rem;">{pItem.filePath}</span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                        </div>
+                        <footer class="slds-modal__footer" style="background: #0f172a; border-top: 1px solid #334155; border-radius: 0 0 8px 8px; display: flex; justify-content: space-between; align-items: center;">
+                            <button class="step-btn step-btn-neutral" onclick={handleClosePayloadConsole}>Close Inspector</button>
+                            <button class="step-btn step-btn-commit" onclick={handleApprovePayload}>✓ Verify & Approve Payload</button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open" style="z-index: 9998;"></div>
+            </template>
+        </div>
+    </section>
+</template>

@@ -1,0 +1,160 @@
+<template>
+    <div class="test-tab-container">
+        <!-- Tests Card Section -->
+        <div class="copado-card">
+            <!-- Card Header -->
+            <div class="copado-card-header slds-grid slds-grid_vertical-align-center slds-p-horizontal_medium slds-p-top_medium slds-p-bottom_small">
+                <div class="slds-media slds-media_center slds-has-flexi-truncate">
+                    <div class="slds-media__figure">
+                        <span class="copado-green-icon">
+                            <lightning-icon icon-name="utility:rules" size="small"></lightning-icon>
+                        </span>
+                    </div>
+                    <div class="slds-media__body">
+                        <h2 class="slds-card__header-title slds-text-heading_small slds-truncate font-bold">
+                            <span>Tests</span>
+                        </h2>
+                    </div>
+                </div>
+                <!-- Actions & Search -->
+                <div class="slds-no-flex header-actions-container">
+                    <div class="slds-grid slds-grid_align-end slds-m-bottom_x-small">
+                        <lightning-button label="Run Tests" variant="neutral" onclick={handleRunTests} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="New Test" variant="neutral" onclick={handleNewTest} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button-icon icon-name="utility:refresh" variant="border-filled" onclick={handleRefresh} alternative-text="Refresh"></lightning-button-icon>
+                    </div>
+                    <div class="search-container slds-grid slds-grid_align-end">
+                        <lightning-input
+                            name="search"
+                            value={searchKey}
+                            placeholder="Search"
+                            type="search"
+                            variant="label-hidden"
+                            onchange={handleSearchChange}
+                            class="search-input">
+                        </lightning-input>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Content Body -->
+            <div class="copado-card-body slds-p-top_none slds-p-horizontal_none" style="position: relative;">
+                <template if:true={isLoading}>
+                    <lightning-spinner alternative-text="Loading tests..." size="small"></lightning-spinner>
+                </template>
+
+                <template if:true={isTestRunning}>
+                    <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-horizontal_medium slds-m-top_small slds-m-bottom_none" role="alert" style="border-radius: 4px; background: #fff8e5; border: 1px solid #dddbda; color: #080707;">
+                        <span class="slds-icon_container slds-m-right_x-small">
+                            <lightning-icon icon-name="utility:spinner" size="x-small"></lightning-icon>
+                        </span>
+                        <span class="font-bold slds-truncate">{runningMessage}</span>
+                    </div>
+                </template>
+
+                <!-- Datatable (Headers always visible) -->
+                <div class="table-wrapper">
+                    <lightning-datatable
+                        key-field="Id"
+                        data={filteredTests}
+                        columns={columns}
+                        hide-checkbox-column>
+                    </lightning-datatable>
+                    
+                    <template if:false={hasTests}>
+                        <template if:false={isLoading}>
+                            <div class="empty-table-message slds-text-align_center slds-p-vertical_medium border-bottom">
+                                <span class="no-data-text">No data to display</span>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Apex Code Coverage Accordion Section -->
+        <div class="copado-card slds-m-top_medium">
+            <div class="copado-card-header slds-grid slds-grid_vertical-align-center slds-p-around_medium" onclick={toggleCoverageAccordion} style="cursor: pointer; background: #fafaf9; border-bottom: 1px solid #dddbda;">
+                <lightning-icon icon-name={coverageChevronIcon} size="x-small" class="slds-m-right_small"></lightning-icon>
+                <h2 class="slds-card__header-title slds-text-heading_small font-bold">Apex Code Coverage</h2>
+            </div>
+            <template if:true={isCoverageExpanded}>
+                <div class="slds-p-around_medium">
+                    <div class="slds-grid slds-wrap slds-gutters">
+                        <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                            <span class="field-label slds-block">Overall Apex Code Coverage</span>
+                            <span class="font-bold slds-text-heading_medium" style="color: #2e844a;">{overallCoverage}</span>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                            <span class="field-label slds-block">Has Apex Code?</span>
+                            <span class="font-bold">{hasApexCodeText}</span>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <span class="field-label slds-block">Failing Methods</span>
+                            <span class="font-bold">{failingMethods}</span>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <span class="field-label slds-block">Classes without Coverage</span>
+                            <span class="font-bold">{classesWithoutCoverage}</span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Compliance Section Accordion -->
+        <div class="copado-card slds-m-top_medium">
+            <div class="copado-card-header slds-grid slds-grid_vertical-align-center slds-p-around_medium" onclick={toggleComplianceAccordion} style="cursor: pointer; background: #fafaf9; border-bottom: 1px solid #dddbda;">
+                <lightning-icon icon-name={complianceChevronIcon} size="x-small" class="slds-m-right_small"></lightning-icon>
+                <h2 class="slds-card__header-title slds-text-heading_small font-bold">Compliance Status</h2>
+            </div>
+            <template if:true={isComplianceExpanded}>
+                <div class="slds-p-around_medium">
+                    <div class="slds-grid slds-wrap slds-gutters">
+                        <div class="slds-col slds-size_1-of-2">
+                            <span class="field-label slds-block">Static Code Analysis Status</span>
+                            <span class="font-bold slds-text-color_success">Passed (0 Violations)</span>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <span class="field-label slds-block">Quality Gate Status</span>
+                            <span class="font-bold slds-text-color_success">Passed</span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- New Test Modal Dialog -->
+        <template if:true={isNewTestModalOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container" style="max-width: 520px;">
+                    <header class="slds-modal__header">
+                        <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700;">Link / Create New Test</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <lightning-input
+                            label="Test Name"
+                            value={newTestName}
+                            onchange={handleNewTestNameChange}
+                            placeholder="e.g. AccountControllerTest or PMD Quality Gate"
+                            required
+                            class="slds-m-bottom_small">
+                        </lightning-input>
+                        <lightning-combobox
+                            label="Test Type"
+                            value={newTestType}
+                            options={testTypeOptions}
+                            onchange={handleNewTestTypeChange}
+                            required>
+                        </lightning-combobox>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button label="Cancel" onclick={handleCloseNewTestModal} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Link Test" variant="brand" onclick={handleSaveNewTest}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,33 @@
+.promo-root {
+    background-color: #ffffff;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #181818;
+    box-sizing: border-box;
+}
+
+/* ---- Pipeline Chevron Path ---- */
+.promo-path-section {
+    padding: 12px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #dddbda;
+}
+
+/* Ensure step label/title remains visible on completed (green) steps */
+.slds-path__item.slds-is-complete .slds-path__title {
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    color: #ffffff !important;
+}
+
+.slds-path__item.slds-is-complete .slds-path__link {
+    color: #ffffff !important;
+}
+
+.check-icon {
+    --lwc-colorTextIconDefault: #ffffff;
+    margin-right: 6px;
+    vertical-align: middle;
+}

@@ -14,6 +14,11 @@ export default class createMultiForm extends LightningElement {
         { label: 'Phone', fieldName: 'Phone' }
     ];
 
+    connectedCallback() {
+        // Initialize search results and selected contacts
+        this.searchResults = [];
+        this.selectedContacts = [];
+    }
     // Search contacts
     handleSearch(event) {
         let searchKey = event.target.value;

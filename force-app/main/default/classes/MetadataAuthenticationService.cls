@@ -12,64 +12,6 @@ public without sharing class MetadataAuthenticationService {
         public String instanceUrl;
 
         @AuraEnabled
-        public String sfdxAuthUrl;
-
-        @AuraEnabled
-        public String authType;
-    }
-
-    public class OAuthTokenResponse {
-
-        @AuraEnabled
-        public String accessToken;
-
-        @AuraEnabled
-        public String instanceUrl;
-    }
-    @AuraEnabled(cacheable=true)
-    public static CredentialWrapper getCredential(
-        Id credentialId
-    ){
-
-        Credentials__c credentialRecord = [
-
-            SELECT Id,
-                   Name,
-                   Instance_URL__c,
-                   SFDX_Auth_URL__c
-            FROM Credentials__c
-            WHERE Id = :credentialId
-            LIMIT 1
-        ];
-
-        CredentialWrapper result =
-            new CredentialWrapper();
-
-        result.credentialId =
-            credentialRecord.Id;
-
-        result.credentialName =
-            credentialRecord.Name;
-
-        result.instanceUrl =
-            credentialRecord.Instance_URL__c;
-
-        result.sfdxAuthUrl =
-            credentialRecord.SFDX_Auth_URL__c;
-
-        result.authType =
-            'SFDX Auth URL';
-
-        return result;
-    }
-
-    @AuraEnabled(cacheable=true)
-    public static String getInstanceUrl(
-        Id credentialId
-    ){
-
-        Credentials__c credentialRecord = [
-
             SELECT Instance_URL__c
             FROM Credentials__c
             WHERE Id = :credentialId
@@ -240,19 +182,92 @@ public static Boolean isOAuthReady(
 public static OAuthTokenResponse generateAccessToken(
     Id credentialId
 ){
+    System.debug(LoggingLevel.DEBUG, 'MetadataAuthenticationService.generateAccessToken:start credentialId=' + credentialId);
 
     Credentials__c credentialRecord = [
-
-        SELECT Instance_URL__c,
+        SELECT Id,
+               Name,
+               Instance_URL__c,
                Connected_App_Client_Id__c,
-               Connected_App_Client_Secret__c
-
+               Connected_App_Client_Secret__c,
+               SFDX_Auth_URL__c
         FROM Credentials__c
-
         WHERE Id = :credentialId
-
         LIMIT 1
     ];
+
+    Boolean isGitHub = String.isNotBlank(credentialRecord.Instance_URL__c) && credentialRecord.Instance_URL__c.contains('github.com');
+
+    // Try SFDX CLI Refresh Token flow if client credentials are not fully configured or instance URL is github.com
+    if ((isGitHub || String.isBlank(credentialRecord.Connected_App_Client_Id__c) || String.isBlank(credentialRecord.Connected_App_Client_Secret__c)) 
+        && String.isNotBlank(credentialRecord.SFDX_Auth_URL__c)) {
+        
+        try {
+            String sfdxAuthUrl = credentialRecord.SFDX_Auth_URL__c;
+            String urlWithoutProtocol = sfdxAuthUrl.substring(8); // remove 'force://'
+            Integer atIndex = urlWithoutProtocol.lastIndexOf('@');
+            if (atIndex != -1) {
+                String credentialsPart = urlWithoutProtocol.substring(0, atIndex);
+                String instanceUrlPart = urlWithoutProtocol.substring(atIndex + 1);
+
+                String refreshToken = '';
+                String clientId = 'PlatformCLI';
+
+                List<String> parts = credentialsPart.split('::');
+                if (parts.size() >= 2) {
+                    refreshToken = parts[1];
+                } else {
+                    List<String> subParts = credentialsPart.split(':');
+                    if (subParts.size() >= 3) {
+                        refreshToken = subParts[2];
+                    } else if (subParts.size() >= 2) {
+                        refreshToken = subParts[1];
+                    }
+                }
+
+                if (String.isNotBlank(refreshToken)) {
+                    String endpoint = 'https://' + instanceUrlPart + '/services/oauth2/token';
+                    HttpRequest request = new HttpRequest();
+                    request.setEndpoint(endpoint);
+                    request.setMethod('POST');
+                    request.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+                    String body = 'grant_type=refresh_token' +
+                                  '&client_id=' + EncodingUtil.urlEncode(clientId, 'UTF-8') +
+                                  '&refresh_token=' + EncodingUtil.urlEncode(refreshToken, 'UTF-8');
+                    request.setBody(body);
+
+                    HttpResponse response = new Http().send(request);
+                    if (response.getStatusCode() == 200) {
+                        Map<String, Object> jsonData = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+                        OAuthTokenResponse result = new OAuthTokenResponse();
+                        result.accessToken = (String) jsonData.get('access_token');
+                        result.instanceUrl = 'https://' + instanceUrlPart;
+                        return result;
+                    } else {
+                        System.debug(LoggingLevel.WARN, 'SFDX Refresh Token exchange failed: Status ' + response.getStatusCode() + ': ' + response.getBody());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.WARN, 'Fallback SFDX Refresh Token exchange warning: ' + ex.getMessage());
+        }
+    }
+
+    if (String.isBlank(credentialRecord.Instance_URL__c)) {
+        System.debug(LoggingLevel.ERROR, 'MetadataAuthenticationService.generateAccessToken:missing Instance_URL__c credentialId=' + credentialId + ', credentialName=' + credentialRecord.Name);
+        throw new AuraHandledException('Credential "' + credentialRecord.Name + '" is missing Instance URL. Fill Credentials__c.Instance_URL__c with a full URL like https://your-domain.my.salesforce.com.');
+    }
+
+    if (!credentialRecord.Instance_URL__c.startsWith('https://') && !credentialRecord.Instance_URL__c.startsWith('http://')) {
+        System.debug(LoggingLevel.ERROR, 'MetadataAuthenticationService.generateAccessToken:invalid Instance_URL__c credentialId=' + credentialId + ', instanceUrl=' + credentialRecord.Instance_URL__c);
+        throw new AuraHandledException('Credential "' + credentialRecord.Name + '" has invalid Instance URL: ' + credentialRecord.Instance_URL__c + '. It must start with https://.');
+    }
+
+    if (String.isBlank(credentialRecord.Connected_App_Client_Id__c) || String.isBlank(credentialRecord.Connected_App_Client_Secret__c)) {
+        System.debug(LoggingLevel.ERROR, 'MetadataAuthenticationService.generateAccessToken:missing OAuth client config credentialId=' + credentialId + ', credentialName=' + credentialRecord.Name);
+        throw new AuraHandledException('Credential "' + credentialRecord.Name + '" is missing Connected App Client Id or Client Secret.');
+    }
 
     HttpRequest request =
         new HttpRequest();
@@ -312,9 +327,7 @@ public static OAuthTokenResponse generateAccessToken(
             request
         );
 
-    System.debug(
-        response.getBody()
-    );
+    System.debug(LoggingLevel.DEBUG, 'MetadataAuthenticationService.generateAccessToken:response credentialId=' + credentialId + ', statusCode=' + response.getStatusCode() + ', body=' + response.getBody());
 
     OAuthTokenResponse result =
 
@@ -343,6 +356,12 @@ public static OAuthTokenResponse generateAccessToken(
 
             credentialRecord
             .Instance_URL__c;
+    } else {
+        throw new AuraHandledException('Failed to generate access token for credential "' + credentialRecord.Name + '". Status ' + response.getStatusCode() + ': ' + response.getBody());
+    }
+
+    if (String.isBlank(result.accessToken) || String.isBlank(result.instanceUrl)) {
+        throw new AuraHandledException('OAuth token response for credential "' + credentialRecord.Name + '" did not include a usable access token and instance URL.');
     }
 
     return result;

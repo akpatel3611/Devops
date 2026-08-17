@@ -5,7 +5,7 @@ private class UserStoryMetadataServiceTest {
     static void testPersistMetadataSuccess() {
         // Create parent user story record
         User_Story__c story = new User_Story__c(
-            Name = 'US-001'
+            Title__c = 'US-001'
         );
         insert story;
 
@@ -55,7 +55,7 @@ private class UserStoryMetadataServiceTest {
     @isTest
     static void testReScanClearsDuplicates() {
         User_Story__c story = new User_Story__c(
-            Name = 'US-002'
+            Title__c = 'US-002'
         );
         insert story;
 

@@ -1,0 +1,136 @@
+<template>
+    <div class="hierarchy-card">
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="loading-box">
+                <lightning-spinner alternative-text="Loading deployment hierarchy..." size="medium" variant="brand"></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- Main Dynamic Tree View -->
+        <template if:false={isLoading}>
+            <template if:true={hasData}>
+                <!-- Deployment Record Header Bar (Upper / Above Table Columns Header) -->
+                <div class="deployment-header-bar">
+                    <div class="dep-left-group">
+                        <button class="btn-toggle" onclick={toggleDeployment} title="Toggle Deployment Stories">
+                            <template if:true={isDeploymentExpanded}>
+                                <lightning-icon icon-name="utility:chevrondown" size="xx-small" alternative-text="Collapse"></lightning-icon>
+                            </template>
+                            <template if:false={isDeploymentExpanded}>
+                                <lightning-icon icon-name="utility:chevronright" size="xx-small" alternative-text="Expand"></lightning-icon>
+                            </template>
+                        </button>
+                        <div class="dep-info">
+                            <div class="dep-title-line">
+                                <span class="dep-label">Deployment</span>
+                                <span class="dep-number">{hierarchyData.deploymentNumber}</span>
+                            </div>
+                            <div class="dep-route-line">
+                                <span>{hierarchyData.sourceEnvironment}</span>
+                                <span class="route-arrow">&rarr;</span>
+                                <span>{hierarchyData.targetEnvironment}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dep-right-group">
+                        <span class={hierarchyData.statusPillClass}>{hierarchyData.status}</span>
+                        <span class="components-count-text">{hierarchyData.storiesSummaryText}</span>
+                    </div>
+                </div>
+
+                <!-- User Stories Table (Placed below the Deployment Header) -->
+                <template if:true={isDeploymentExpanded}>
+                    <div class="tree-table">
+                        <!-- Table Header Row for User Stories -->
+                        <div class="grid-header-row">
+                            <div class="col-hierarchy">User Story</div>
+                            <div class="col-owner">Owner</div>
+                            <div class="col-branch">Git Branch</div>
+                            <div class="col-status">Status</div>
+                            <div class="col-components">
+                                <span>Components</span>
+                            </div>
+                        </div>
+
+                        <!-- User Story Rows -->
+                        <div class="stories-tree-group">
+                            <template for:each={hierarchyData.userStories} for:item="story">
+                                <div key={story.id} class="story-node-block">
+                                    <!-- Story Row -->
+                                    <div class="story-row">
+                                        <div class="col-hierarchy col-hierarchy_story">
+                                            <button class="btn-toggle btn-toggle_story" data-id={story.id} onclick={toggleStory} title="Toggle User Story">
+                                                <template if:true={story.isExpanded}>
+                                                    <lightning-icon icon-name="utility:chevrondown" size="xx-small" alternative-text="Collapse"></lightning-icon>
+                                                </template>
+                                                <template if:false={story.isExpanded}>
+                                                    <lightning-icon icon-name="utility:add" size="xx-small" alternative-text="Expand"></lightning-icon>
+                                                </template>
+                                            </button>
+                                            <div class="story-info">
+                                                <strong class="story-id">{story.name}</strong>
+                                                <span class="story-title">{story.title}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-owner">{story.developer}</div>
+                                        <div class="col-branch">{story.branchName}</div>
+                                        <div class="col-status">
+                                            <span class={story.statusPillClass}>{story.status}</span>
+                                        </div>
+                                        <div class="col-components col-components_story">
+                                            <span class="metadata-count"><span class="metadata-count-label">Metadata</span>{story.metadataCount}</span>
+                                            <lightning-button label="Git" icon-name="utility:open" variant="neutral" size="small" data-url={story.gitUrl} disabled={story.gitButtonDisabled} onclick={handleOpenGit}></lightning-button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Level 3: Nested Metadata Table (Expanded Node Detail) -->
+                                    <template if:true={story.isExpanded}>
+                                        <div class="metadata-table-card">
+                                            <template if:true={story.hasMetadata}>
+                                                <table class="meta-grid">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="th-type">Type</th>
+                                                            <th class="th-name">Component (API Name)</th>
+                                                            <th class="th-status">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template for:each={story.metadataList} for:item="meta">
+                                                            <tr key={meta.id}>
+                                                                <td class="td-type">{meta.metadataType}</td>
+                                                                <td class="td-name">{meta.metadataName}</td>
+                                                                <td class="td-status">
+                                                                    <span class={meta.statusPillClass}>{meta.status}</span>
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </template>
+
+                                            <template if:false={story.hasMetadata}>
+                                                <div class="empty-meta-box">
+                                                    <span>No metadata components linked to this user story.</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <!-- Empty Deployment Data Fallback -->
+            <template if:false={hasData}>
+                <div class="empty-state">
+                    <p class="empty-title">No user stories are linked to this deployment.</p>
+                </div>
+            </template>
+        </template>
+    </div>
+</template>

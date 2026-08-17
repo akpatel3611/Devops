@@ -11,7 +11,9 @@ public with sharing class UserStoryMetadataService {
      * Deletes any existing components for the User Story to prevent duplicates on re-scans.
      */
     public static void persistMetadata(Id userStoryId, List<MetadataScannerService.MetadataComponent> components) {
+        System.debug(LoggingLevel.INFO, '[UserStoryMetadataService.persistMetadata] START - userStoryId: ' + userStoryId + ' | Components Count: ' + (components != null ? components.size() : 0));
         if (userStoryId == null) {
+            System.debug(LoggingLevel.WARN, '[UserStoryMetadataService.persistMetadata] Warning: userStoryId is null.');
             return;
         }
 
@@ -23,11 +25,15 @@ public with sharing class UserStoryMetadataService {
             if (components != null && !components.isEmpty()) {
                 List<User_Story_Metadata__c> recordsToInsert = createJunctionRecords(userStoryId, components);
                 if (!recordsToInsert.isEmpty()) {
+                    System.debug(LoggingLevel.FINE, '[UserStoryMetadataService.persistMetadata] Bulk inserting ' + recordsToInsert.size() + ' User_Story_Metadata__c records...');
                     insert recordsToInsert;
+                    System.debug(LoggingLevel.INFO, '[UserStoryMetadataService.persistMetadata] SUCCESS - Bulk inserted ' + recordsToInsert.size() + ' records.');
                 }
+            } else {
+                System.debug(LoggingLevel.WARN, '[UserStoryMetadataService.persistMetadata] Warning: components list is empty or null.');
             }
         } catch (Exception ex) {
-            System.debug(LoggingLevel.ERROR, 'Failed to persist User Story Metadata: ' + ex.getMessage());
+            System.debug(LoggingLevel.ERROR, '[UserStoryMetadataService.persistMetadata] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             throw new UserStoryMetadataException('Failed to persist metadata inventory: ' + ex.getMessage(), ex);
         }
     }
@@ -36,6 +42,7 @@ public with sharing class UserStoryMetadataService {
      * Deletes existing metadata records for a user story.
      */
     private static void deleteExistingMetadata(Id userStoryId) {
+        System.debug(LoggingLevel.DEBUG, '[UserStoryMetadataService.deleteExistingMetadata] Querying existing inventory for userStoryId: ' + userStoryId);
         List<User_Story_Metadata__c> existing = [
             SELECT Id 
             FROM User_Story_Metadata__c 
@@ -43,7 +50,9 @@ public with sharing class UserStoryMetadataService {
             LIMIT 10000
         ];
         if (!existing.isEmpty()) {
+            System.debug(LoggingLevel.FINE, '[UserStoryMetadataService.deleteExistingMetadata] Deleting ' + existing.size() + ' old inventory records...');
             delete existing;
+            System.debug(LoggingLevel.DEBUG, '[UserStoryMetadataService.deleteExistingMetadata] Deleted ' + existing.size() + ' records.');
         }
     }
 

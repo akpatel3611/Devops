@@ -1,0 +1,136 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" class="modal-backdrop">
+        <div class="modal-container">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <div class="modal-header-icon">
+                        <lightning-icon icon-name="standard:user_story" size="small"></lightning-icon>
+                    </div>
+                    <div>
+                        <h2 class="modal-title">Add User Stories to Promotion</h2>
+                        <p class="modal-subtitle">Select ready-to-promote stories to bundle in this promotion</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick={handleClose} aria-label="Close">
+                    <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                </button>
+            </div>
+
+            <!-- Search / Filter Bar -->
+            <div class="modal-filters">
+                <div class="search-wrapper">
+                    <lightning-icon icon-name="utility:search" size="x-small" class="search-icon"></lightning-icon>
+                    <input
+                        type="text"
+                        class="search-input"
+                        placeholder="Search by story name or title..."
+                        value={searchTerm}
+                        oninput={handleSearch}
+                    />
+                </div>
+                <div class="filter-info">
+                    <span class="filter-badge">{filteredCount} stories found</span>
+                    <template if:true={hasSelection}>
+                        <span class="selected-badge">{selectedCount} selected</span>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Stories Table -->
+            <div class="modal-body">
+                <template if:true={isLoading}>
+                    <div class="modal-loading">
+                        <lightning-spinner alternative-text="Loading stories..." size="medium" variant="brand"></lightning-spinner>
+                        <p class="loading-text">Fetching ready stories...</p>
+                    </div>
+                </template>
+
+                <template if:false={isLoading}>
+                    <template if:true={hasFilteredStories}>
+                        <table class="modal-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-check">
+                                        <input type="checkbox" onchange={handleSelectAll} checked={allSelected} class="check-input"/>
+                                    </th>
+                                    <th>Story</th>
+                                    <th>Title</th>
+                                    <th>Source Env</th>
+                                    <th>Status</th>
+                                    <th>Metadata</th>
+                                    <th>Developer</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={filteredStories} for:item="story">
+                                    <tr key={story.id} class={story.rowClass} onclick={handleRowClick} data-id={story.id}>
+                                        <td class="col-check" onclick={stopPropagation}>
+                                            <input
+                                                type="checkbox"
+                                                class="check-input"
+                                                data-id={story.id}
+                                                checked={story.selected}
+                                                onchange={handleCheckboxChange}
+                                            />
+                                        </td>
+                                        <td>
+                                            <span class="story-name-chip">{story.name}</span>
+                                        </td>
+                                        <td class="story-title-cell">{story.title}</td>
+                                        <td><span class="env-pill">{story.sourceEnvironment}</span></td>
+                                        <td>
+                                            <span class="status-dot-wrap">
+                                                <span class="status-dot"></span>
+                                                {story.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="meta-chip">
+                                                <lightning-icon icon-name="utility:package" size="xx-small"></lightning-icon>
+                                                {story.metadataCount}
+                                            </span>
+                                        </td>
+                                        <td class="dev-cell">{story.developer}</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+
+                    <template if:false={hasFilteredStories}>
+                        <div class="modal-empty">
+                            <lightning-icon icon-name="utility:list" size="large" class="empty-icon"></lightning-icon>
+                            <h3 class="empty-heading">No Ready Stories Found</h3>
+                            <p class="empty-desc">
+                                No User Stories with "Ready to Promote" = true were found for this pipeline
+                                and source environment. Mark stories as ready before adding them here.
+                            </p>
+                        </div>
+                    </template>
+                </template>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+                <div class="footer-left">
+                    <template if:true={hasSelection}>
+                        <span class="footer-selection-info">
+                            {selectedCount} of {filteredCount} stories selected
+                        </span>
+                    </template>
+                </div>
+                <div class="footer-actions">
+                    <lightning-button label="Cancel" onclick={handleClose} variant="neutral"></lightning-button>
+                    <lightning-button
+                        label="Add to Promotion"
+                        icon-name="utility:add"
+                        variant="brand"
+                        onclick={handleSave}
+                        disabled={isSaveDisabled}>
+                    </lightning-button>
+                </div>
+            </div>
+        </div>
+    </section>
+</template>
