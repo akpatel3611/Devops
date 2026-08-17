@@ -54,49 +54,57 @@ public with sharing class PipelineRuntimeService {
      * Start the Pipeline Runtime Engine for a deployment request with webhook data.
      */
     public static void startPipeline(Id deploymentRequestId, GitHubRecordService.GitHubRecordData requestData) {
-        if (deploymentRequestId == null) {
-            return;
-        }
-
-        // Reset runtime execution state (ensures bulk safety when invoked sequentially)
-        currentDeploymentRequestId = deploymentRequestId;
-        currentPipeline = null;
-        currentDeploymentRequest = null;
-        currentUserStory = null;
-        sourceEnvironment = null;
-        targetEnvironment = null;
-        currentCredential = null;
-
-        // Initialize runtime fields from request data
-        if (requestData != null) {
-            currentBranch = requestData.sourceBranch;
-            currentPrNumber = requestData.pullRequestNumber;
-            currentPrUrl = requestData.pullRequestUrl;
-            currentCommitId = requestData.sourceSha;
-        } else {
-            currentBranch = null;
-            currentPrNumber = null;
-            currentPrUrl = null;
-            currentCommitId = null;
-        }
-
-        // Load related records
-        loadDeploymentRequest();
-        loadPipeline();
-        loadUserStory();
-        loadSourceEnvironment();
-        loadTargetEnvironment();
-        loadCredential();
-
-        // Fallback fields from database if requestData was not provided
-        if (requestData == null) {
-            if (currentDeploymentRequest != null) {
-                currentBranch = currentDeploymentRequest.Branch_Name__c;
+        System.debug(LoggingLevel.INFO, '[PipelineRuntimeService.startPipeline] START - deploymentRequestId: ' + deploymentRequestId);
+        try {
+            if (deploymentRequestId == null) {
+                System.debug(LoggingLevel.WARN, '[PipelineRuntimeService.startPipeline] Warning: deploymentRequestId is null.');
+                return;
             }
-            if (currentUserStory != null) {
-                currentPrNumber = getIntegerPrNumber(currentUserStory);
-                currentPrUrl = (String) getFirstExistingFieldValue(currentUserStory, new List<String>{ 'Pull_Request_URL__c', 'GitHub_PR_URL__c', 'External_URL__c' });
+
+            // Reset runtime execution state (ensures bulk safety when invoked sequentially)
+            currentDeploymentRequestId = deploymentRequestId;
+            currentPipeline = null;
+            currentDeploymentRequest = null;
+            currentUserStory = null;
+            sourceEnvironment = null;
+            targetEnvironment = null;
+            currentCredential = null;
+
+            // Initialize runtime fields from request data
+            if (requestData != null) {
+                currentBranch = requestData.sourceBranch;
+                currentPrNumber = requestData.pullRequestNumber;
+                currentPrUrl = requestData.pullRequestUrl;
+                currentCommitId = requestData.sourceSha;
+            } else {
+                currentBranch = null;
+                currentPrNumber = null;
+                currentPrUrl = null;
+                currentCommitId = null;
             }
+
+            // Load related records
+            loadDeploymentRequest();
+            loadPipeline();
+            loadUserStory();
+            loadSourceEnvironment();
+            loadTargetEnvironment();
+            loadCredential();
+
+            // Fallback fields from database if requestData was not provided
+            if (requestData == null) {
+                if (currentDeploymentRequest != null) {
+                    currentBranch = currentDeploymentRequest.Branch_Name__c;
+                }
+                if (currentUserStory != null) {
+                    currentPrNumber = getIntegerPrNumber(currentUserStory);
+                    currentPrUrl = (String) getFirstExistingFieldValue(currentUserStory, new List<String>{ 'Pull_Request_URL__c', 'GitHub_PR_URL__c', 'External_URL__c' });
+                }
+            }
+            System.debug(LoggingLevel.INFO, '[PipelineRuntimeService.startPipeline] SUCCESS - State initialized for Branch: ' + currentBranch + ' | PR: ' + currentPrNumber);
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[PipelineRuntimeService.startPipeline] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw ex;
         }
 
         // Run engine logic

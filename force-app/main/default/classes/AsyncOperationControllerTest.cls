@@ -15,13 +15,14 @@ private class AsyncOperationControllerTest {
                 Record_Id__c=acc.Id,
                 Record_Name__c='Test Record',
                 Status__c='FAILED',
-                BRR_Name__c='BRR Test',
+                BRR_Name__c='Batch',
                 Operation_Name__c='Operation Test',
                 Message__c='Testing',
                 Progress__c=50
         );
-
         insert logRecord;
+
+       
 
         Test.startTest();
 

@@ -31,73 +31,99 @@ public without sharing class DeploymentDashboardController {
 
     @AuraEnabled(cacheable=true)
     public static Map<String, Object> getLivePipeline(Id projectId) {
+        System.debug(LoggingLevel.INFO, '[DeploymentDashboardController.getLivePipeline] START - projectId: ' + projectId);
         Map<String, Object> result = new Map<String, Object>();
         
-        List<Pipeline__c> pipelines;
-        if (projectId != null) {
-            pipelines = [SELECT Id, Name, Current_Stage__c, Pipeline_Runtime_Status__c, Current_Branch__c 
-                         FROM Pipeline__c 
-                         WHERE Project__c = :projectId 
-                         ORDER BY LastModifiedDate DESC LIMIT 1];
-        } else {
-            pipelines = [SELECT Id, Name, Current_Stage__c, Pipeline_Runtime_Status__c, Current_Branch__c 
-                         FROM Pipeline__c 
-                         ORDER BY LastModifiedDate DESC LIMIT 1];
-        }
-        
-        if (pipelines.isEmpty()) {
+        try {
+            List<Pipeline__c> pipelines;
+            if (projectId != null) {
+                pipelines = [SELECT Id, Name, Current_Stage__c, Pipeline_Runtime_Status__c, Current_Branch__c 
+                             FROM Pipeline__c 
+                             WHERE Project__c = :projectId 
+                             ORDER BY LastModifiedDate DESC LIMIT 1];
+            } else {
+                pipelines = [SELECT Id, Name, Current_Stage__c, Pipeline_Runtime_Status__c, Current_Branch__c 
+                             FROM Pipeline__c 
+                             ORDER BY LastModifiedDate DESC LIMIT 1];
+            }
+            
+            if (pipelines.isEmpty()) {
+                System.debug(LoggingLevel.WARN, '[DeploymentDashboardController.getLivePipeline] Warning: No active pipeline found.');
+                return result;
+            }
+            
+            Pipeline__c pipe = pipelines[0];
+            result.put('pipeline', pipe);
+            System.debug(LoggingLevel.DEBUG, '[DeploymentDashboardController.getLivePipeline] Resolved Pipeline: ' + pipe.Name + ' | ID: ' + pipe.Id);
+            
+            List<Stage__c> stages = [SELECT Id, Name, Stage_Order__c, Stage_Type__c, Status__c 
+                                     FROM Stage__c 
+                                     WHERE Pipeline__c = :pipe.Id 
+                                     ORDER BY Stage_Order__c ASC];
+            result.put('stages', stages);
+            System.debug(LoggingLevel.INFO, '[DeploymentDashboardController.getLivePipeline] SUCCESS - Loaded ' + stages.size() + ' pipeline stages.');
             return result;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[DeploymentDashboardController.getLivePipeline] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw new AuraHandledException('Failed to load live pipeline: ' + ex.getMessage());
         }
-        
-        Pipeline__c pipe = pipelines[0];
-        result.put('pipeline', pipe);
-        
-        List<Stage__c> stages = [SELECT Id, Name, Stage_Order__c, Stage_Type__c, Status__c 
-                                 FROM Stage__c 
-                                 WHERE Pipeline__c = :pipe.Id 
-                                 ORDER BY Stage_Order__c ASC];
-        result.put('stages', stages);
-        
-        return result;
     }
 
     @AuraEnabled(cacheable=true)
     public static List<Deployment_Request__c> getLiveDeployments(Id projectId) {
-        if (projectId != null) {
-            return [SELECT Id, Name, Deployment_Number__c, Deployment_Status__c, 
-                           Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
-                           Triggered_By__c, Started_On__c, Completed_On__c
-                    FROM Deployment_Request__c 
-                    WHERE Pipeline__r.Project__c = :projectId
-                    ORDER BY Started_On__c DESC NULLS LAST, CreatedDate DESC
-                    LIMIT 10];
-        } else {
-            return [SELECT Id, Name, Deployment_Number__c, Deployment_Status__c, 
-                           Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
-                           Triggered_By__c, Started_On__c, Completed_On__c
-                    FROM Deployment_Request__c 
-                    ORDER BY Started_On__c DESC NULLS LAST, CreatedDate DESC
-                    LIMIT 10];
+        System.debug(LoggingLevel.INFO, '[DeploymentDashboardController.getLiveDeployments] START - projectId: ' + projectId);
+        try {
+            List<Deployment_Request__c> deps;
+            if (projectId != null) {
+                deps = [SELECT Id, Name, Deployment_Number__c, Deployment_Status__c, 
+                               Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
+                               Triggered_By__c, Started_On__c, Completed_On__c
+                        FROM Deployment_Request__c 
+                        WHERE Pipeline__r.Project__c = :projectId
+                        ORDER BY Started_On__c DESC NULLS LAST, CreatedDate DESC
+                        LIMIT 10];
+            } else {
+                deps = [SELECT Id, Name, Deployment_Number__c, Deployment_Status__c, 
+                               Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
+                               Triggered_By__c, Started_On__c, Completed_On__c
+                        FROM Deployment_Request__c 
+                        ORDER BY Started_On__c DESC NULLS LAST, CreatedDate DESC
+                        LIMIT 10];
+            }
+            System.debug(LoggingLevel.INFO, '[DeploymentDashboardController.getLiveDeployments] SUCCESS - Loaded ' + deps.size() + ' live deployments.');
+            return deps;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[DeploymentDashboardController.getLiveDeployments] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw new AuraHandledException('Failed to load live deployments: ' + ex.getMessage());
         }
     }
 
     @AuraEnabled(cacheable=true)
     public static List<Promotion__c> getLivePromotions(Id projectId) {
-        if (projectId != null) {
-            return [SELECT Id, Name, Promotion_Name__c, Status__c, 
-                           Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
-                           Triggered_By__c, Promotion_Date__c
-                    FROM Promotion__c 
-                    WHERE Pipeline__r.Project__c = :projectId
-                    ORDER BY Promotion_Date__c DESC NULLS LAST, CreatedDate DESC
-                    LIMIT 10];
-        } else {
-            return [SELECT Id, Name, Promotion_Name__c, Status__c, 
-                           Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
-                           Triggered_By__c, Promotion_Date__c
-                    FROM Promotion__c 
-                    ORDER BY Promotion_Date__c DESC NULLS LAST, CreatedDate DESC
-                    LIMIT 10];
+        System.debug(LoggingLevel.INFO, '[DeploymentDashboardController.getLivePromotions] START - projectId: ' + projectId);
+        try {
+            List<Promotion__c> promos;
+            if (projectId != null) {
+                promos = [SELECT Id, Name, Promotion_Name__c, Status__c, 
+                               Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
+                               Triggered_By__c, Promotion_Date__c
+                        FROM Promotion__c 
+                        WHERE Pipeline__r.Project__c = :projectId
+                        ORDER BY Promotion_Date__c DESC NULLS LAST, CreatedDate DESC
+                        LIMIT 10];
+            } else {
+                promos = [SELECT Id, Name, Promotion_Name__c, Status__c, 
+                               Source_Environment__r.Name__c, Target_Environment__r.Name__c, 
+                               Triggered_By__c, Promotion_Date__c
+                        FROM Promotion__c 
+                        ORDER BY Promotion_Date__c DESC NULLS LAST, CreatedDate DESC
+                        LIMIT 10];
+            }
+            System.debug(LoggingLevel.INFO, '[DeploymentDashboardController.getLivePromotions] SUCCESS - Loaded ' + promos.size() + ' live promotions.');
+            return promos;
+        } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[DeploymentDashboardController.getLivePromotions] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
+            throw new AuraHandledException('Failed to load live promotions: ' + ex.getMessage());
         }
     }
 

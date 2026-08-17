@@ -1,0 +1,596 @@
+<template>
+    <template if:true={isExecutionView}>
+        <c-production-release-console record-id={activeDeploymentRequestId} onback={handleBackToPdCreator}></c-production-release-console>
+    </template>
+
+    <template if:false={isExecutionView}>
+        <lightning-card title="P&D Creator: Multi-Story Production Release" icon-name="standard:release">
+            <div slot="actions">
+                <lightning-button 
+                    label="Refresh" 
+                    icon-name="utility:refresh" 
+                    onclick={handleRefresh} 
+                    class="slds-m-right_x-small">
+                </lightning-button>
+                <!-- STEP 1: View Master Payload -->
+                <template if:false={isPayloadApproved}>
+                    <lightning-button
+                        variant="brand-outline"
+                        label="View Master Payload"
+                        icon-name="utility:preview"
+                        disabled={isMasterPayloadDisabled}
+                        onclick={handleOpenMasterPayloadModal}
+                        class="slds-m-right_x-small">
+                    </lightning-button>
+                </template>
+                <template if:true={isPayloadApproved}>
+                    <lightning-button
+                        variant="success"
+                        label="✓ Master Payload Approved"
+                        icon-name="utility:check"
+                        disabled
+                        class="slds-m-right_x-small">
+                    </lightning-button>
+                </template>
+
+                <!-- STEP 2: Dry-Run Validation -->
+                <template if:true={isPayloadApproved}>
+                    <template if:false={isValidated}>
+                        <lightning-button
+                            variant={validationButtonVariant}
+                            label={validationButtonLabel}
+                            icon-name="utility:check"
+                            disabled={isValidationButtonDisabled}
+                            onclick={handleRunValidation}
+                            class="slds-m-right_x-small">
+                        </lightning-button>
+                    </template>
+                    <template if:true={isValidated}>
+                        <lightning-button
+                            variant="success"
+                            label="✓ Dry-Run Validation Passed"
+                            icon-name="utility:check"
+                            disabled
+                            class="slds-m-right_x-small">
+                        </lightning-button>
+                    </template>
+                </template>
+                <lightning-button 
+                    variant="brand" 
+                    label="Next: Initiate Sync" 
+                    icon-name="utility:forward" 
+                    disabled={isNextDisabled} 
+                    onclick={handleInitiateSyncFlow}>
+                </lightning-button>
+            </div>
+
+            <div class="slds-p-around_medium">
+                <!-- Header Badges Bar -->
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_medium slds-p-around_x-small" style="background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <div>
+                        <span class="slds-badge slds-theme_info slds-m-right_small">
+                            Selected Stories: {selectedCount}
+                        </span>
+                        <template if:true={isPayloadApproved}>
+                            <span class="slds-badge slds-theme_success slds-m-right_small">
+                                Payload Approved
+                            </span>
+                        </template>
+                        <template if:true={isValidated}>
+                            <span class="slds-badge slds-theme_success slds-m-right_small">
+                                Production Dry-Run Validated
+                            </span>
+                        </template>
+                        <template if:true={isSyncComplete}>
+                            <span class="slds-badge slds-theme_success">
+                                UAT Branch Sync Complete
+                            </span>
+                        </template>
+                    </div>
+                    <template if:true={validationFailed}>
+                        <div>
+                            <lightning-button label="Force Validation Pass (Override)" variant="destructive-text" size="small" onclick={handleForceValidationPass}></lightning-button>
+                        </div>
+                    </template>
+                </div>
+
+        <!-- ================================================================= -->
+        <!-- SEPARATE VALIDATION CONSOLE MODAL WINDOW                          -->
+        <!-- ================================================================= -->
+        <template if:true={isValidationModalOpen}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium" aria-labelledby="val-modal-heading" aria-modal="true">
+                <div class="slds-modal__container" style="max-width: 60rem; width: 85%;">
+                    <!-- Modal Header -->
+                    <header class="slds-modal__header" style="background: #0f172a; color: #ffffff;">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseValidationModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <h2 id="val-modal-heading" class="slds-modal__title slds-hyphenate" style="color: #ffffff; font-weight: 700; font-size: 1.15rem;">
+                                Validation Console: Production Target Org (Check-Only)
+                            </h2>
+                            <div>
+                                <template if:true={isValidating}>
+                                    <span class="slds-badge slds-theme_info">Validating...</span>
+                                </template>
+                                <template if:true={isValidated}>
+                                    <span class="slds-badge slds-theme_success">Validation Passed</span>
+                                </template>
+                                <template if:true={validationFailed}>
+                                    <span class="slds-badge slds-theme_error">Validation Failed</span>
+                                </template>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Modal Body: Real-Time Live Streaming Console Logs -->
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #f8fafc; min-height: 300px;">
+                        <div class="slds-m-bottom_x-small slds-grid slds-grid_vertical-align-center slds-grid_align-spread">
+                            <span style="font-weight: 600; font-size: 0.875rem; color: #334155;">
+                                Real-Time Check-Only Validation Execution Status Log:
+                            </span>
+                            <template if:true={isValidating}>
+                                <span style="font-size: 0.775rem; color: #0284c7; font-weight: 600;">
+                                    Streaming live logs...
+                                </span>
+                            </template>
+                        </div>
+
+                        <!-- Dark Live Terminal Console Box -->
+                        <div style="background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; height: 230px; overflow-y: auto; font-family: monospace;">
+                            <template for:each={validationSteps} for:item="step">
+                                <div key={step.id} style="font-size: 0.825rem; padding: 3px 0;">
+                                    <template if:true={step.isComplete}>
+                                        <span style="color: #4ade80; font-weight: 700; margin-right: 8px;">[CHECK PASSED]</span>
+                                    </template>
+                                    <template if:true={step.isCurrent}>
+                                        <span style="color: #38bdf8; font-weight: 700; margin-right: 8px;">[EXECUTING]</span>
+                                    </template>
+                                    <template if:true={step.isFailed}>
+                                        <span style="color: #f87171; font-weight: 700; margin-right: 8px;">[FAILED]</span>
+                                    </template>
+                                    <span style="color: #f1f5f9;">{step.name}</span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Action Controls on Validation Failure -->
+                        <template if:true={validationFailed}>
+                            <div class="slds-m-top_small slds-p-around_small" style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px;">
+                                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                    <div>
+                                        <span style="font-size: 0.825rem; font-weight: 700; color: #991b1b;">
+                                            Validation Error: Target Org Component or Dependency Mismatch.
+                                        </span>
+                                        <p style="font-size: 0.775rem; color: #b91c1c; margin-top: 2px;">
+                                            You can retry validation or click "Force Validation Pass & Auto-Fix Blockers" to clear org blockages automatically.
+                                        </p>
+                                    </div>
+                                    <div class="slds-m-left_small">
+                                        <lightning-button
+                                            label="Retry Validation"
+                                            variant="neutral"
+                                            icon-name="utility:refresh"
+                                            onclick={handleRunValidation}
+                                            class="slds-m-right_x-small">
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Force Validation Pass & Auto-Fix Blockers"
+                                            variant="destructive"
+                                            icon-name="utility:build"
+                                            onclick={handleAutoFixValidation}>
+                                        </lightning-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <footer class="slds-modal__footer" style="background: #ffffff; border-top: 1px solid #e2e8f0;">
+                        <lightning-button label="Close Window" variant="neutral" onclick={handleCloseValidationModal} class="slds-m-right_small"></lightning-button>
+                        <lightning-button label="Done & Proceed to Release" variant="success" disabled={isValidationDoneDisabled} onclick={handleCloseValidationModal}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- ================================================================= -->
+        <!-- SEPARATE AUTO-FIXER ENGINE INSPECTION MODAL WINDOW               -->
+        <!-- ================================================================= -->
+        <template if:true={isAutoFixModalOpen}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium" aria-labelledby="autofix-modal-heading" aria-modal="true">
+                <div class="slds-modal__container" style="max-width: 65rem; width: 85%;">
+                    <!-- Modal Header -->
+                    <header class="slds-modal__header" style="background: #1e1b4b; color: #ffffff;">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseAutoFixModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <h2 id="autofix-modal-heading" class="slds-modal__title slds-hyphenate" style="color: #ffffff; font-weight: 700; font-size: 1.15rem;">
+                                AI Real-Time Validation Auto-Fixer Engine (Org Scan & Resolution)
+                            </h2>
+                            <div>
+                                <template if:true={isFixing}>
+                                    <span class="slds-badge slds-theme_info">Scanning & Fixing Org...</span>
+                                </template>
+                                <template if:true={isFixComplete}>
+                                    <span class="slds-badge slds-theme_success">Fix Applied & Resolved</span>
+                                </template>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Modal Body -->
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #f8fafc; min-height: 320px;">
+                        <!-- Live Scan Console -->
+                        <div class="slds-m-bottom_medium">
+                            <span style="font-weight: 600; font-size: 0.875rem; color: #334155;">
+                                Real-Time Org Dependency & Blockage Resolution Stream:
+                            </span>
+                            <div style="background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; height: 130px; overflow-y: auto; font-family: monospace; margin-top: 6px;">
+                                <template for:each={autoFixLogs} for:item="log">
+                                    <div key={log.id} style="font-size: 0.8rem; padding: 2px 0; color: #f1f5f9;">
+                                        <span style="color: #a855f7; font-weight: 700; margin-right: 6px;">[AUTO-FIXER]</span>
+                                        <span>{log.text}</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Detected Blockages & Fixes Table -->
+                        <template if:true={isFixComplete}>
+                            <div class="slds-m-top_small">
+                                <h3 class="slds-text-title_bold slds-m-bottom_x-small" style="color: #0f172a;">
+                                    Audit Report: Detected Blockages & Applied Resolutions ({autoFixReport.length})
+                                </h3>
+                                <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                                        <thead>
+                                            <tr class="slds-line-height_reset" style="background: #f1f5f9;">
+                                                <th scope="col" style="width: 35%;"><div class="slds-truncate">Detected Blockage / Mismatch</div></th>
+                                                <th scope="col" style="width: 50%;"><div class="slds-truncate">Auto-Fix Resolution Applied</div></th>
+                                                <th scope="col" style="width: 15%;"><div class="slds-truncate">Status</div></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={autoFixReport} for:item="row">
+                                                <tr key={row.blockage} class="slds-hint-parent">
+                                                    <td><div class="slds-truncate" style="font-weight: 600; color: #991b1b;">{row.blockage}</div></td>
+                                                    <td><div style="font-size: 0.8rem; color: #166534;">{row.fix}</div></td>
+                                                    <td><span class="slds-badge slds-theme_success">{row.status}</span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <footer class="slds-modal__footer" style="background: #ffffff; border-top: 1px solid #e2e8f0;">
+                        <template if:false={isFixComplete}>
+                            <lightning-button label="Cancel" variant="neutral" onclick={handleCloseAutoFixModal}></lightning-button>
+                        </template>
+                        <template if:true={isFixComplete}>
+                            <lightning-button label="Fix Applied & Validation Passed" variant="success" icon-name="utility:check" onclick={handleApplyFixAndDone}></lightning-button>
+                        </template>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- ================================================================= -->
+        <!-- SEPARATE PRE-RELEASE UAT SYNC & VERIFICATION MODAL WINDOW        -->
+        <!-- ================================================================= -->
+        <template if:true={isSyncModalOpen}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large" aria-labelledby="sync-modal-heading" aria-modal="true">
+                <div class="slds-modal__container" style="max-width: 70rem; width: 88%;">
+                    <!-- Modal Header -->
+                    <header class="slds-modal__header" style="background: #0f172a; color: #ffffff;">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseSyncModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <h2 id="sync-modal-heading" class="slds-modal__title slds-hyphenate" style="color: #ffffff; font-weight: 700; font-size: 1.15rem;">
+                                Pre-Release UAT Branch Sync & Git Scanning Console
+                            </h2>
+                            <div>
+                                <template if:true={isSyncing}>
+                                    <span class="slds-badge slds-theme_info">Scanning & Syncing...</span>
+                                </template>
+                                <template if:true={isSyncComplete}>
+                                    <span class="slds-badge slds-theme_success">UAT Sync Complete</span>
+                                </template>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Modal Body -->
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #f8fafc; min-height: 320px;">
+                        <div class="slds-m-bottom_x-small slds-grid slds-grid_vertical-align-center">
+                            <template if:true={isSyncing}>
+                                <lightning-spinner alternative-text="Syncing UAT..." size="small" variant="brand" class="slds-m-right_small"></lightning-spinner>
+                            </template>
+                            <span style="font-weight: 600; font-size: 0.875rem; color: #334155;">
+                                Real-Time GitHub Branch Scanning & UAT Merge Stream:
+                            </span>
+                        </div>
+
+                        <!-- Live Terminal Console Box -->
+                        <div style="background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; height: 180px; overflow-y: auto; font-family: monospace;">
+                            <template for:each={syncLogs} for:item="log">
+                                <div key={log.id} style="font-size: 0.825rem; padding: 3px 0; color: #f1f5f9;">
+                                    <span style="color: #38bdf8; font-weight: 700; margin-right: 8px;">[GIT SYNC]</span>
+                                    <span>{log.text}</span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Synced Metadata Files Table -->
+                        <template if:true={isSyncComplete}>
+                            <div class="slds-m-top_small">
+                                <h3 class="slds-text-title_bold slds-m-bottom_x-small" style="color: #0f172a;">
+                                    Audit List: Metadata Files Synced & Merged into UAT Branch ({syncedFiles.length})
+                                </h3>
+                                <div style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; max-height: 160px; overflow-y: auto;">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_compact">
+                                        <thead>
+                                            <tr class="slds-line-height_reset" style="background: #f1f5f9;">
+                                                <th scope="col" style="width: 35%;"><div class="slds-truncate">Metadata Component API Name</div></th>
+                                                <th scope="col" style="width: 20%;"><div class="slds-truncate">Type</div></th>
+                                                <th scope="col" style="width: 15%;"><div class="slds-truncate">User Story</div></th>
+                                                <th scope="col" style="width: 15%;"><div class="slds-truncate">Source Branch</div></th>
+                                                <th scope="col" style="width: 15%;"><div class="slds-truncate">Target Branch</div></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={syncedFiles} for:item="f">
+                                                <tr key={f.id} class="slds-hint-parent">
+                                                    <td><div class="slds-truncate" style="font-weight: 600; color: #1e293b;">{f.name}</div></td>
+                                                    <td><span class="slds-badge slds-theme_light">{f.type}</span></td>
+                                                    <td><div class="slds-truncate">{f.story}</div></td>
+                                                    <td><div class="slds-truncate" style="color: #0284c7; font-weight: 600;">{f.sourceBranch}</div></td>
+                                                    <td><span class="slds-badge slds-theme_success">{f.targetBranch}</span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Modal Footer: Sequential Button Workflow -->
+                    <footer class="slds-modal__footer" style="background: #ffffff; border-top: 1px solid #e2e8f0;">
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <div>
+                                <!-- Phase 1: Verify UAT Sync Button -->
+                                <template if:false={isSyncVerified}>
+                                    <lightning-button
+                                        label="Verify UAT Sync Changes (Opens GitHub UAT Branch)"
+                                        variant="brand"
+                                        icon-name="utility:new_window"
+                                        onclick={handleVerifyUatChanges}
+                                        class="slds-m-right_x-small">
+                                    </lightning-button>
+                                </template>
+
+                                <!-- Phase 2: Not Merged & Approve Buttons (unlocked after Verify) -->
+                                <template if:true={isSyncVerified}>
+                                    <template if:true={hasSyncMissingFiles}>
+                                        <lightning-button
+                                            label="Not Merged / Report Issue"
+                                            variant="destructive-text"
+                                            onclick={handleCancelSync}
+                                            class="slds-m-right_x-small">
+                                        </lightning-button>
+                                    </template>
+                                    <template if:false={isSyncApproved}>
+                                        <lightning-button
+                                            label="Approve UAT Merge"
+                                            variant="brand"
+                                            icon-name="utility:check"
+                                            onclick={handleApproveUatMerge}>
+                                        </lightning-button>
+                                    </template>
+                                    <template if:true={isSyncApproved}>
+                                        <span class="slds-badge slds-theme_success slds-m-left_x-small">✓ UAT Merge Approved</span>
+                                    </template>
+                                </template>
+                            </div>
+
+                            <div>
+                                <!-- Phase 3: Next: Create Production PR & Open Release Console -->
+                                <lightning-button
+                                    label="Next: Create Production PR & Open Release Console"
+                                    variant="success"
+                                    icon-name="utility:forward"
+                                    disabled={isNextPRDisabled}
+                                    onclick={handleApproveAndCreatePR}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+                <!-- User Stories Selection Datatable -->
+                <template if:true={isLoading}>
+                    <div class="slds-p-around_large slds-text-align_center">
+                        <lightning-spinner alternative-text="Loading eligible release stories..." size="medium" variant="brand"></lightning-spinner>
+                        <p class="slds-m-top_small">Fetching stories currently in UAT staging...</p>
+                    </div>
+                </template>
+
+                <template if:false={isLoading}>
+                    <template if:true={hasStories}>
+                        <div style="height: 360px;">
+                            <lightning-datatable
+                                key-field="id"
+                                data={storiesList}
+                                columns={columns}
+                                onrowselection={handleRowSelection}>
+                            </lightning-datatable>
+                        </div>
+                    </template>
+                    <template if:false={hasStories}>
+                        <div class="slds-illustration slds-illustration_small slds-p-around_large slds-text-align_center">
+                            <h3 class="slds-text-heading_medium">No User Stories Ready in UAT</h3>
+                            <p class="slds-text-body_regular slds-m-top_small">User stories will automatically appear here once they complete deployment to UAT environment.</p>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </lightning-card>
+
+        <!-- ================================================================= -->
+        <!-- MASTER ADVANCE PAYLOAD TABLE MODAL                                -->
+        <!-- ================================================================= -->
+        <template if:true={isPayloadModalOpen}>
+            <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large" aria-labelledby="modal-heading-01" aria-modal="true">
+                <div class="slds-modal__container" style="max-width: 90rem; width: 90%;">
+                    <!-- Modal Header -->
+                    <header class="slds-modal__header" style="background: #1e293b; color: #ffffff;">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseMasterPayloadModal}>
+                            <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate" style="color: #ffffff; font-weight: 700; font-size: 1.2rem;">
+                            Master Advance Payload Inspection Table (Multi-Story Release)
+                        </h2>
+                        <p class="slds-m-top_x-small" style="font-size: 0.85rem; color: #cbd5e1;">
+                            Consolidated metadata payload across all {selectedCount} selected User Stories.
+                        </p>
+                    </header>
+
+                    <!-- Modal Content -->
+                    <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1" style="min-height: 420px; background: #ffffff;">
+                        <template if:true={isLoadingPayload}>
+                            <div class="slds-p-around_large slds-text-align_center">
+                                <lightning-spinner alternative-text="Loading master payload items..." size="medium" variant="brand"></lightning-spinner>
+                                <p class="slds-m-top_small">Loading consolidated metadata components across branches...</p>
+                            </div>
+                        </template>
+
+                        <template if:false={isLoadingPayload}>
+                            <div class="slds-m-bottom_small slds-grid slds-grid_align-spread">
+                                <span class="slds-text-title_bold">Total Metadata Components: {payloadItems.length}</span>
+                                <span class="slds-text-color_weak" style="font-size: 0.8rem;">Target Base Branch: <b>main</b></span>
+                            </div>
+
+                            <!-- 4-Column Advance Table Matching Notebook Diagram -->
+                            <div class="slds-scrollable_y" style="max-height: 420px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped">
+                                    <thead>
+                                        <tr class="slds-line-height_reset" style="background: #f1f5f9;">
+                                            <th scope="col" style="width: 25%;"><div class="slds-truncate" title="User Story Record">User Story Record</div></th>
+                                            <th scope="col" style="width: 35%;"><div class="slds-truncate" title="(Type) Metadata Component">(Type) Metadata Component</div></th>
+                                            <th scope="col" style="width: 20%;"><div class="slds-truncate" title="Branch & Git Link">Branch & Git Link</div></th>
+                                            <th scope="col" style="width: 20%;"><div class="slds-truncate" title="PR Page Link">PR Page Link</div></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={groupedStoryPayloads} for:item="story">
+                                            <tr key={story.id} style="vertical-align: top; border-bottom: 2px solid #cbd5e1;">
+                                                <!-- Column 1: User Story Link + Arrow Toggle + Step-by-line list (ON EXPAND ONLY) -->
+                                                <td style="padding: 12px;">
+                                                    <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;" onclick={handleToggleStoryExpand} data-id={story.id}>
+                                                        <span style="font-weight: 900; color: #0284c7; font-size: 1rem; cursor: pointer;">
+                                                            <template if:true={story.isExpanded}>▼</template>
+                                                            <template if:false={story.isExpanded}>▶</template>
+                                                        </span>
+                                                        <a href={story.storyUrl} target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: #0284c7; font-size: 0.95rem;" onclick={handleStopPropagation}>
+                                                            🔗 {story.storyName}
+                                                        </a>
+                                                        <span class="slds-badge slds-theme_info" style="font-size: 0.7rem;">
+                                                            {story.fileCount} Files
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- Step-by-line list ONLY WHEN EXPANDED -->
+                                                    <template if:true={story.isExpanded}>
+                                                        <div style="font-size: 0.8rem; color: #475569; padding-left: 10px; margin-top: 8px; border-left: 2px solid #0284c7;">
+                                                            <template for:each={story.files} for:item="f">
+                                                                <div key={f.id} style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                                                                    <span style="color: #64748b; font-family: monospace; font-size: 0.75rem;">└─</span>
+                                                                    <span style="background: #e2e8f0; color: #334155; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold;">{f.indexNum}</span>
+                                                                    <span style="font-weight: 600; color: #0f172a;">{f.apiName}</span>
+                                                                    <span style="font-size: 0.68rem; color: #64748b;">({f.metadataType})</span>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </td>
+
+                                                <!-- Column 2: (Type) Metadata Component Path List (ON EXPAND ONLY) -->
+                                                <td style="padding: 12px;">
+                                                    <template if:false={story.isExpanded}>
+                                                        <div style="color: #64748b; font-size: 0.8rem; font-style: italic; margin-top: 4px; cursor: pointer;" onclick={handleToggleStoryExpand} data-id={story.id}>
+                                                            Click ▶ to expand {story.fileCount} metadata components...
+                                                        </div>
+                                                    </template>
+                                                    <template if:true={story.isExpanded}>
+                                                        <div style="margin-top: 26px;"></div>
+                                                        <template for:each={story.files} for:item="f">
+                                                            <div key={f.id} style="margin-top: 4px; font-family: monospace; font-size: 0.75rem; color: #475569; height: 22px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                                <span style="background: #e2e8f0; color: #334155; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold; flex-shrink: 0;">{f.indexNum}</span>
+                                                                <span class="slds-badge slds-theme_inverse" style="font-size: 0.65rem; padding: 1px 5px; flex-shrink: 0;">{f.metadataType}</span>
+                                                                <span style="overflow: hidden; text-overflow: ellipsis; color: #64748b;">{f.filePath}</span>
+                                                            </div>
+                                                        </template>
+                                                    </template>
+                                                </td>
+
+                                                <!-- Column 3: Branch Name & View on Git Button -->
+                                                <td style="padding: 12px; vertical-align: middle;">
+                                                    <div>
+                                                        <span class="slds-badge" style="background: #e2e8f0; color: #334155; font-weight: 600;">
+                                                            {story.branchName}
+                                                        </span>
+                                                        <div style="margin-top: 6px;">
+                                                            <a href={story.gitViewUrl} target="_blank" rel="noopener noreferrer" class="slds-button slds-button_neutral slds-button_x-small" style="font-size: 0.75rem;">
+                                                                View on Git ↗
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <!-- Column 4: PR Page Link & Status -->
+                                                <td style="padding: 12px; vertical-align: middle;">
+                                                    <div>
+                                                        <a href={story.prUrl} target="_blank" rel="noopener noreferrer" style="font-weight: 700; color: #059669; font-size: 0.9rem;">
+                                                            {story.prNumber} Page ↗
+                                                        </a>
+                                                        <p style="font-size: 0.75rem; color: #166534; margin-top: 4px;">
+                                                            Action: {story.action}
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <footer class="slds-modal__footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                        <lightning-button label="Cancel" variant="neutral" onclick={handleCloseMasterPayloadModal} class="slds-m-right_small"></lightning-button>
+                        <lightning-button label="Verify & Approve Master Payload" variant="success" onclick={handleApproveMasterPayload}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </template>
+</template>

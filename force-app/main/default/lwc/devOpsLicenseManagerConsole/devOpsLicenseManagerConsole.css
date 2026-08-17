@@ -1,0 +1,130 @@
+.license-console-container {
+    background-color: #0b1120;
+    min-height: 100vh;
+    color: #e2e8f0;
+}
+
+.console-header-card {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border-radius: 12px;
+    border: 1px solid #334155;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.header-icon-badge {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    padding: 12px;
+    border-radius: 10px;
+    display: inline-flex;
+}
+
+.console-main-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+}
+
+.console-sub-title {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.refresh-btn {
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* Copado-Style Capacity Gauges */
+.gauge-card {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.gauge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.gauge-label {
+    font-size: 12px;
+    font-weight: 800;
+    color: #f1f5f9;
+    letter-spacing: 0.3px;
+}
+
+.gauge-count {
+    font-size: 13px;
+    font-weight: 800;
+    color: #38bdf8;
+}
+
+.gauge-track {
+    background-color: #334155;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.gauge-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease-in-out;
+}
+
+.fill-admin { background: linear-gradient(90deg, #ef4444, #dc2626); }
+.fill-dev { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.fill-rm { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+.fill-org { background: linear-gradient(90deg, #10b981, #059669); }
+
+.gauge-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 6px;
+}
+
+/* Table Card */
+.table-card {
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+}
+
+.table-title h2 {
+    color: #f8fafc;
+}
+
+.search-input-box {
+    width: 340px;
+}
+
+.custom-user-table {
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
+}
+
+.custom-user-table th {
+    background-color: #020617 !important;
+    color: #94a3b8 !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+.custom-user-table td {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-bottom: 1px solid #1e293b !important;
+    font-size: 13px !important;
+}
+
+.user-name-link {
+    color: #38bdf8 !important;
+}

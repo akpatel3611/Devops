@@ -31,12 +31,15 @@ public with sharing class DeploymentRuntimeFlowAction {
      */
     @InvocableMethod(label='Execute Deployment Action' category='Deployment' description='Triggers validation, deployment, or cancellation for a Deployment Request')
     public static List<ActionResult> execute(List<ActionRequest> requests) {
+        System.debug(LoggingLevel.INFO, '[DeploymentRuntimeFlowAction.execute] START - Requests Count: ' + (requests != null ? requests.size() : 0));
         List<ActionResult> results = new List<ActionResult>();
         if (requests == null || requests.isEmpty()) {
+            System.debug(LoggingLevel.WARN, '[DeploymentRuntimeFlowAction.execute] Warning: requests list is empty or null.');
             return results;
         }
 
         for (ActionRequest req : requests) {
+            System.debug(LoggingLevel.DEBUG, '[DeploymentRuntimeFlowAction.execute] Processing request - RecordID: ' + req.recordId + ' | ActionType: ' + req.actionType);
             ActionResult res = new ActionResult();
             res.requestId = req.recordId;
             try {
@@ -45,22 +48,27 @@ public with sharing class DeploymentRuntimeFlowAction {
                     res.success = startRes.success;
                     res.message = startRes.message;
                     res.currentStatus = startRes.currentStatus;
+                    System.debug(LoggingLevel.FINE, '[DeploymentRuntimeFlowAction.execute] StartDeployment result - Success: ' + res.success + ' | Status: ' + res.currentStatus);
                 } else if (req.actionType == 'Cancel') {
                     res.success = DeploymentRuntimeService.cancelDeployment(req.recordId);
                     res.message = 'Deployment request cancelled successfully.';
                     res.currentStatus = 'Cancelled';
+                    System.debug(LoggingLevel.FINE, '[DeploymentRuntimeFlowAction.execute] CancelDeployment result - Success: ' + res.success);
                 } else {
                     res.success = false;
                     res.message = 'Invalid action type: ' + req.actionType;
                     res.currentStatus = 'Failed';
+                    System.debug(LoggingLevel.WARN, '[DeploymentRuntimeFlowAction.execute] Warning: Invalid action type: ' + req.actionType);
                 }
             } catch (Exception ex) {
+                System.debug(LoggingLevel.ERROR, '[DeploymentRuntimeFlowAction.execute] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
                 res.success = false;
                 res.message = ex.getMessage();
                 res.currentStatus = 'Failed';
             }
             results.add(res);
         }
+        System.debug(LoggingLevel.INFO, '[DeploymentRuntimeFlowAction.execute] SUCCESS - Executed ' + results.size() + ' Flow action requests.');
         return results;
     }
 }

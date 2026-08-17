@@ -1,0 +1,558 @@
+<template>
+    <div class="slds-card slds-p-around_large main-container">
+        <!-- Loader -->
+        <template if:true={isProcessing}>
+            <lightning-spinner alternative-text="Processing commit operation" size="medium" variant="brand"></lightning-spinner>
+        </template>
+
+        <!-- Already Deployed Info Banner (Instruction only, not blockage) -->
+        <template if:true={isAlreadyDeployed}>
+            <div class="already-deployed-banner slds-m-bottom_medium info-theme" style="background: #e6f4ea; color: #137333; border: 1px solid #ceead6; padding: 12px 16px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center;">
+                    <lightning-icon icon-name="utility:info" size="small" variant="success" class="slds-m-right_x-small"></lightning-icon>
+                    <span>This User Story has already been deployed. You can re-commit your changes if needed.</span>
+                </div>
+                <template if:true={existingDeploymentRequestId}>
+                    <lightning-button
+                        label="View Previous Deployment"
+                        variant="brand-outline"
+                        onclick={handleViewDeployment}
+                        class="slds-m-left_medium">
+                    </lightning-button>
+                </template>
+            </div>
+        </template>
+
+        <!-- Top Title & Subtitle -->
+        <div class="slds-grid slds-grid_align-spread slds-m-bottom_large border-bottom slds-p-bottom_medium">
+            <div>
+                <h1 class="slds-text-heading_medium font-bold">User Story Commit</h1>
+                <p class="slds-m-top_xx-small subtext">
+                    {sourceEnvName} &gt; {projectName} - Salesforce Metadata Format &nbsp; | &nbsp; Branch: {featureBranch}
+                </p>
+            </div>
+            <div class="header-actions-container">
+                <button class="step-btn step-btn-neutral" onclick={handleCancel}>Cancel</button>
+                
+                <!-- Commit Actions Step Pipeline -->
+                <template if:false={isCommitHidden}>
+                    <!-- STEP 1: Quality Gate Button -->
+                    <template if:true={isScanning}>
+                        <button class="step-btn step-btn-neutral" disabled>⏳ Scanning...</button>
+                    </template>
+                    <template if:false={isScanning}>
+                        <template if:false={isQualityGatePassed}>
+                            <button class="step-btn step-btn-outline" onclick={handleRunQualityGateScan} disabled={isQualityGateButtonDisabled}>Run Quality Gate</button>
+                        </template>
+                        <template if:true={isQualityGatePassed}>
+                            <button class="step-btn step-btn-success" disabled style="opacity: 0.65; pointer-events: none; cursor: not-allowed;">✓ Quality Gate Passed</button>
+                        </template>
+                    </template>
+
+                    <!-- STEP 2: Inspect Payload Button -->
+                    <template if:false={isPayloadInspected}>
+                        <button class="step-btn step-btn-outline" onclick={handleInspectPayload} disabled={isPayloadDisabled}>Inspect Payload</button>
+                    </template>
+                    <template if:true={isPayloadInspected}>
+                        <button class="step-btn step-btn-success" disabled style="opacity: 0.65; pointer-events: none; cursor: not-allowed;">✓ Payload Inspected</button>
+                    </template>
+
+                    <!-- STEP 3: Validate Button -->
+                    <template if:false={isValidated}>
+                        <button class="step-btn step-btn-outline" onclick={handleValidateChanges} disabled={isValidateDisabled}>Validate</button>
+                    </template>
+                    <template if:true={isValidated}>
+                        <button class="step-btn step-btn-success" disabled style="opacity: 0.65; pointer-events: none; cursor: not-allowed;">✓ Validated</button>
+                    </template>
+
+                    <!-- STEP 4: Commit Button -->
+                    <button class="step-btn step-btn-commit" onclick={handleCommit} disabled={isCommitDisabled}>Commit</button>
+                </template>
+
+                <template if:true={isCommitHidden}>
+                    <button class="step-btn step-btn-commit" onclick={handleViewDeployment}>View Deployment</button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Git Settings Fields Section -->
+        <div class="slds-grid slds-wrap slds-gutters slds-m-bottom_large section-bg slds-p-around_medium">
+            <div class="slds-col slds-size_1-of-4">
+                <lightning-combobox
+                    name="gitOperation"
+                    label="Git Operation"
+                    value={gitOperation}
+                    options={gitOperations}
+                    onchange={handleGitOperationChange}
+                    required>
+                </lightning-combobox>
+            </div>
+            <div class="slds-col slds-size_2-of-4">
+                <lightning-textarea
+                    name="commitMessage"
+                    label="Commit Message"
+                    value={commitMessage}
+                    onchange={handleCommitMessageChange}
+                    placeholder="e.g. US-0000025: Setup Subscription Object with Layout"
+                    required
+                    max-length="255"
+                    rows="2">
+                </lightning-textarea>
+            </div>
+            <div class="slds-col slds-size_1-of-8">
+                <lightning-input
+                    label="Git Snapshot Name"
+                    value={sourceEnvName}
+                    read-only>
+                </lightning-input>
+            </div>
+            <div class="slds-col slds-size_1-of-8">
+                <lightning-input
+                    label="User Story Reference"
+                    value={userStoryName}
+                    read-only>
+                </lightning-input>
+            </div>
+        </div>
+
+        <!-- Select Metadata Subheader -->
+        <div class="slds-grid slds-grid_align-spread slds-m-bottom_small">
+            <h2 class="slds-text-heading_small font-semibold">Select Metadata</h2>
+            <div class="slds-grid">
+                <lightning-button label="Refresh All Metadata" variant="neutral" onclick={handleRefreshAll} class="slds-m-right_x-small"></lightning-button>
+                <lightning-button label="Refresh Recent Changes" variant="neutral" onclick={handleRefreshRecent} class="slds-m-right_x-small"></lightning-button>
+                <lightning-button-menu label="Auto-Select Changes" variant="border-filled" onselect={handleAutoSelect}>
+                    <lightning-menu-item value="recent" label="Auto-Select Recent Changes"></lightning-menu-item>
+                    <lightning-menu-item value="all" label="Auto-Select All Changes"></lightning-menu-item>
+                </lightning-button-menu>
+            </div>
+        </div>
+
+        <!-- Metadata Selection Tabs & Custom Table -->
+        <lightning-tabset variant="scoped">
+            <!-- All Metadata Tab -->
+            <lightning-tab label="All Metadata">
+                <div class="table-container slds-m-top_small">
+                    <template if:true={isLoadingMetadata}>
+                        <div class="slds-align_absolute-center slds-p-around_large">
+                            <lightning-spinner alternative-text="Loading components" size="small"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template if:false={isLoadingMetadata}>
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered custom-table">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th scope="col" style="width: 3rem;">
+                                        <div class="slds-truncate header-title">Select</div>
+                                        <lightning-input type="checkbox" onchange={handleSelectAll} name="selectAll"></lightning-input>
+                                    </th>
+                                    <th scope="col" style="width: 5rem;">
+                                        <div class="slds-truncate header-title">Retrieve Only</div>
+                                        <lightning-input type="checkbox" onchange={handleRetrieveAll} name="retrieveAll"></lightning-input>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate header-title">Name</div>
+                                        <lightning-input
+                                            name="filterName"
+                                            value={filterName}
+                                            placeholder="Filter Name..."
+                                            type="search"
+                                            onchange={handleFilterChange}
+                                            variant="label-hidden"
+                                            class="filter-input">
+                                        </lightning-input>
+                                    </th>
+                                    <th scope="col" style="position: relative; overflow: visible;">
+                                        <div class="slds-truncate header-title">Type</div>
+                                        <div class={comboboxClass} style="width: 100%;">
+                                            <div class="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none" style="position: relative;">
+                                                <input
+                                                    type="text"
+                                                    class="slds-input slds-combobox__input filter-input-search"
+                                                    placeholder="Search Type..."
+                                                    value={filterTypeInputVal}
+                                                    oninput={handleMetadataTypeSearch}
+                                                    onclick={handleMetadataTypeClick}
+                                                    onblur={handleMetadataTypeBlur}
+                                                    style="height: 32px; border-radius: 4px; padding-right: 24px; margin-top: 6px; font-size: 0.8rem;"
+                                                />
+                                                <span class="slds-icon_container slds-icon-utility-down slds-input__icon slds-input__icon_right" style="position: absolute; right: 8px; top: 70%; transform: translateY(-50%); pointer-events: none; height: auto;">
+                                                    <lightning-icon icon-name="utility:down" size="xx-small" class="slds-icon slds-icon_x-small slds-icon-text-default"></lightning-icon>
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Dropdown List -->
+                                            <template if:true={isMetadataDropdownOpen}>
+                                                <div class="slds-dropdown slds-dropdown_fluid slds-dropdown_left type-dropdown-menu" role="listbox" style="left: 0; right: auto;">
+                                                    <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                                                        <template for:each={processedMetadataTypes} for:item="type">
+                                                            <li key={type.value} role="presentation" class="slds-listbox__item" data-value={type.value} onmousedown={handleMetadataTypeSelect}>
+                                                                <div class="slds-media slds-media_center slds-listbox__option slds-listbox__option_plain" role="option">
+                                                                    <span class="slds-media__body">
+                                                                        <span class="slds-truncate" title={type.label}>{type.label}</span>
+                                                                    </span>
+                                                                </div>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </th>
+                                     <th scope="col">
+                                        <div class="slds-truncate header-title">Last Modified By</div>
+                                        <lightning-input
+                                            name="filterUser"
+                                            value={filterUser}
+                                            placeholder="Filter User..."
+                                            type="search"
+                                            onchange={handleFilterChange}
+                                            variant="label-hidden"
+                                            class="filter-input">
+                                        </lightning-input>
+                                    </th>
+                                    <th scope="col">
+                                        <div class="slds-truncate header-title">Last Modified Date</div>
+                                        <lightning-input
+                                            name="filterDate"
+                                            value={filterDate}
+                                            type="date"
+                                            onchange={handleFilterChange}
+                                            variant="label-hidden"
+                                            class="filter-input">
+                                        </lightning-input>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={filteredComponents} for:item="comp">
+                                    <tr key={comp.value} class="slds-hint-parent">
+                                        <td>
+                                            <lightning-input
+                                                type="checkbox"
+                                                checked={comp.selected}
+                                                data-id={comp.value}
+                                                onchange={handleRowSelect}>
+                                            </lightning-input>
+                                        </td>
+                                        <td>
+                                            <lightning-input
+                                                type="checkbox"
+                                                checked={comp.retrieveOnly}
+                                                data-id={comp.value}
+                                                onchange={handleRowRetrieveOnly}>
+                                            </lightning-input>
+                                        </td>
+                                        <td><div class="slds-truncate font-medium">{comp.label}</div></td>
+                                        <td><div class="slds-truncate">{comp.type}</div></td>
+                                        <td><div class="slds-truncate">{comp.lastModifiedBy}</div></td>
+                                        <td><div class="slds-truncate">{comp.lastModifiedDate}</div></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                </div>
+            </lightning-tab>
+
+            <!-- Selected Metadata Tab -->
+            <lightning-tab label={selectedTabLabel}>
+                <div class="table-container slds-m-top_small">
+                    <template if:true={hasSelections}>
+                        <template for:each={categorizedSelections} for:item="cat">
+                            <div key={cat.id} class="slds-m-bottom_medium slds-card slds-card_boundary" style="border-radius: 6px; overflow: hidden; background: #ffffff;">
+                                <div class="slds-p-around_small slds-grid slds-grid_vertical-align-center" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                    <lightning-icon icon-name={cat.icon} size="small" class="slds-m-right_small"></lightning-icon>
+                                    <h3 class="slds-text-title_bold font-semibold" style="font-size: 0.95rem; color: #1e293b;">
+                                        {cat.name}
+                                    </h3>
+                                    <span class="slds-badge slds-m-left_small" style="background: #e2e8f0; color: #334155; font-weight: 700;">
+                                        {cat.count}
+                                    </span>
+                                </div>
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered custom-table">
+                                    <thead>
+                                        <tr class="slds-line-height_reset">
+                                            <th scope="col">Name</th>
+                                            <th scope="col">Type</th>
+                                            <th scope="col">Retrieve Only</th>
+                                            <th scope="col">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={cat.items} for:item="sel">
+                                            <tr key={sel.value}>
+                                                <td><div class="slds-truncate font-medium">{sel.value}</div></td>
+                                                <td><div class="slds-truncate">{sel.type}</div></td>
+                                                <td>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        checked={sel.retrieveOnly}
+                                                        data-id={sel.value}
+                                                        onchange={handleSelectionRetrieveOnlyToggle}>
+                                                    </lightning-input>
+                                                </td>
+                                                <td>
+                                                    <lightning-button-icon
+                                                        icon-name="utility:delete"
+                                                        variant="border-filled"
+                                                        alternative-text="Remove"
+                                                        data-id={sel.value}
+                                                        onclick={handleRemoveSelection}>
+                                                    </lightning-button-icon>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                    </template>
+                    <template if:false={hasSelections}>
+                        <div class="slds-align_absolute-center slds-text-color_weak slds-p-around_large">
+                            No components selected yet. Please select components in the "All Metadata" tab.
+                        </div>
+                    </template>
+                </div>
+            </lightning-tab>
+        </lightning-tabset>
+
+        <!-- Unified Quality Gate Scanner Modal -->
+        <template if:true={isQualityGateModalOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container" style="max-width: 640px;">
+                    <header class="slds-modal__header" style="background: #fff; border-bottom: 1px solid #e2e8f0; border-radius: 8px 8px 0 0; padding: 16px 24px;">
+                        <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700; color: #1e293b; font-size: 1.15rem;">
+                            🛡️ Quality Gate Scanner — Deep Metadata Inspection
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #ffffff;">
+                        <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_medium" role="alert" style="border-radius: 6px; text-align: left; padding: 12px 16px;">
+                            <lightning-icon icon-name="utility:warning" size="small" variant="warning" class="slds-m-right_small"></lightning-icon>
+                            <span style="font-weight: 600;">Quality Gate detected pre-commit deployment blockages:</span>
+                        </div>
+
+                        <div class="slds-m-bottom_small" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">
+                            <h3 style="font-weight: 700; color: #334155; margin-bottom: 8px;">Missing Test Classes & Dependencies:</h3>
+                            <template for:each={qualityGateWarnings} for:item="warn">
+                                <div key={warn} class="slds-grid slds-grid_vertical-align-center slds-m-bottom_xx-small" style="color: #dc2626; font-weight: 500; font-size: 0.875rem;">
+                                    <span style="margin-right: 8px;">✕</span>
+                                    <span>{warn}</span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <p style="font-size: 0.85rem; color: #64748b;">
+                            {qualityGateMessage}
+                        </p>
+                    </div>
+                    <footer class="slds-modal__footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                        <lightning-button label="Cancel" onclick={handleCloseQualityGateModal} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Proceed Anyway" variant="neutral" onclick={handleProceedAnyway} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Auto-Fix & Add Missing Files" variant="brand" icon-name="utility:check" onclick={handleAutoFixAndCommit}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Commit Selection Warning Modal -->
+        <template if:true={isCommitWarningModalOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container" style="max-width: 640px;">
+                    <header class="slds-modal__header" style="background: #fff; border-bottom: 1px solid #e2e8f0; border-radius: 8px 8px 0 0; padding: 16px 24px;">
+                        <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700; color: #b91c1c; font-size: 1.15rem;">
+                            ⚠️ Commit Selections Warning — Unresolved Dependencies
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #ffffff;">
+                        <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_medium" role="alert" style="border-radius: 6px; text-align: left; padding: 12px 16px;">
+                            <lightning-icon icon-name="utility:warning" size="small" variant="warning" class="slds-m-right_small"></lightning-icon>
+                            <span style="font-weight: 600;">The Quality Gate Scan has reported the following warnings/blockages for the selected files:</span>
+                        </div>
+
+                        <div class="slds-m-bottom_small" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">
+                            <h3 style="font-weight: 700; color: #334155; margin-bottom: 8px;">Reported Warnings & Blockages:</h3>
+                            <template for:each={qualityGateWarnings} for:item="warn">
+                                <div key={warn} class="slds-grid slds-grid_vertical-align-center slds-m-bottom_xx-small" style="color: #b91c1c; font-weight: 500; font-size: 0.875rem;">
+                                    <span style="margin-right: 8px;">✕</span>
+                                    <span>{warn}</span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <p style="font-size: 0.85rem; color: #64748b;">
+                            You can choose to go back to resolve these dependencies, automatically add the suggested files to your selection, or bypass these warnings and proceed with the commit anyway.
+                        </p>
+                    </div>
+                    <footer class="slds-modal__footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+                        <lightning-button label="Go Back" onclick={handleCloseCommitWarningModal} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Auto-Fix & Add Files" variant="neutral" icon-name="utility:check" onclick={handleAutoFixFromCommitWarning} class="slds-m-right_x-small"></lightning-button>
+                        <lightning-button label="Proceed Anyway" variant="brand" onclick={handleConfirmCommitAnyway}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Metadata Payload Inspector Console Modal -->
+        <template if:true={isPayloadConsoleOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open slds-modal_large">
+                <div class="slds-modal__container" style="max-width: 900px;">
+                    <header class="slds-modal__header" style="background: #0f172a; color: #f8fafc; border-bottom: 1px solid #334155; border-radius: 8px 8px 0 0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700; font-size: 1.15rem; color: #38bdf8;">
+                            🖥️ Real-Time Git Metadata Payload Inspector
+                        </h2>
+                        <span style="font-size: 0.8rem; background: #1e293b; padding: 4px 10px; border-radius: 12px; color: #94a3b8;">
+                            Total Payload Files: {payloadFileCount}
+                        </span>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #0f172a; color: #e2e8f0; font-family: monospace;">
+                        <template if:true={isLoadingPayload}>
+                            <div class="slds-align_absolute-center slds-p-around_large">
+                                <lightning-spinner alternative-text="Generating payload preview" size="medium" variant="base"></lightning-spinner>
+                            </div>
+                        </template>
+                        <template if:false={isLoadingPayload}>
+                            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px; max-height: 450px; overflow-y: auto;">
+                                <div style="color: #38bdf8; font-weight: bold; margin-bottom: 8px; font-size: 0.9rem;">
+                                    === Git Payload Tree Preview (Files to be pushed) ===
+                                </div>
+                                <table class="slds-table slds-table_cell-buffer custom-dark-table" style="background: transparent; color: #e2e8f0;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid #334155;">
+                                            <th style="color: #94a3b8; font-size: 0.8rem;">#</th>
+                                            <th style="color: #94a3b8; font-size: 0.8rem;">Metadata Type</th>
+                                            <th style="color: #94a3b8; font-size: 0.8rem;">API Name</th>
+                                            <th style="color: #94a3b8; font-size: 0.8rem;">Target Git File Path</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={payloadPreviewItems} for:item="pItem" for:index="pIdx">
+                                            <tr key={pItem.filePath} style="border-bottom: 1px solid #1e293b;">
+                                                <td style="color: #64748b; font-size: 0.8rem;">{pIdx}</td>
+                                                <td><span style="color: #a7f3d0; font-size: 0.85rem;">{pItem.metadataType}</span></td>
+                                                <td><span style="color: #fef08a; font-size: 0.85rem;">{pItem.apiName}</span></td>
+                                                <td><span style="color: #38bdf8; font-weight: bold; font-size: 0.85rem;">{pItem.filePath}</span></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                    </div>
+                    <footer class="slds-modal__footer" style="background: #0f172a; border-top: 1px solid #334155; border-radius: 0 0 8px 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <button class="step-btn step-btn-neutral" onclick={handleClosePayloadConsole}>Cancel</button>
+                        <button class="step-btn step-btn-success" onclick={handleApprovePayload}>✓ Verify & Approve Payload</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Live Target Org Validation Console Modal (Copado Execution Console Style) -->
+        <template if:true={showValidationConsoleModal}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open slds-modal_small">
+                <div class="slds-modal__container" style="max-width: 620px;">
+                    <header class="slds-modal__header" style="background: #1a2736; color: #ffffff; border-bottom: 1px solid #2e3e50; border-radius: 8px 8px 0 0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700; font-size: 1.1rem; color: #ffffff;">
+                                Real-Time Target Org Validation Console
+                            </h2>
+                            <p style="font-size: 0.8rem; color: #8ba2b9; margin-top: 2px;">
+                                Dry-Run Check-Only Deployment Execution
+                            </p>
+                        </div>
+                        <span style="font-size: 0.75rem; background: #0d1520; padding: 4px 10px; border-radius: 12px; color: #38bdf8; border: 1px solid #2e3e50;">
+                            Check-Only Mode
+                        </span>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #0d1520; color: #e2e8f0;">
+                        <div class="steps-container" style="margin-bottom: 12px;">
+                            <div class="steps-list">
+                                <template for:each={validationLogs} for:item="step">
+                                    <div key={step.id} class="step-line">
+                                        <span class={step.iconClass}>{step.iconSymbol}</span>
+                                        <span class="step-text">{step.name}</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Success Banner -->
+                        <template if:true={isValidated}>
+                            <div class="slds-p-around_small" style="background: #0f382c; border: 1px solid #27ae60; border-radius: 6px; color: #a3e4d7;">
+                                <div style="font-weight: bold; font-size: 14px;">✓ Dry-Run Validation Passed Successfully!</div>
+                                <div style="font-size: 12px; margin-top: 4px; color: #d4efdf;">
+                                    All selected metadata components & Apex classes compiled with zero errors. Commit button is now unlocked!
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Failure Banner -->
+                        <template if:true={isValidationFailed}>
+                            <div class="slds-p-around_small" style="background: #3e1b1b; border: 1px solid #e74c3c; border-radius: 6px; color: #ff8888;">
+                                <div style="font-weight: bold; font-size: 14px;">✕ Target Compilation Error:</div>
+                                <div style="font-size: 12px; margin-top: 4px; color: #ffcccc; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">
+                                    {validationErrorMessage}
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <footer class="slds-modal__footer" style="background: #152233; border-top: 1px solid #2c3e50; border-radius: 0 0 8px 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <template if:true={isValidating}>
+                                <span style="font-size: 0.85rem; color: #fef08a; font-family: monospace;">
+                                    ⏳ Validation in progress... Please wait.
+                                </span>
+                            </template>
+                            <template if:true={isValidationFailed}>
+                                <button class="step-btn step-btn-error" onclick={handleValidateChanges}>Retry Validation</button>
+                            </template>
+                        </div>
+                        <template if:true={isValidated}>
+                            <button class="step-btn step-btn-success" onclick={handleCloseValidationConsoleModal}>
+                                ✓ Close & Unlock Commit
+                            </button>
+                        </template>
+                        <template if:true={isValidationFailed}>
+                            <button class="step-btn step-btn-neutral" onclick={handleCloseValidationConsoleModal}>
+                                Close
+                            </button>
+                        </template>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Pre-Commit Validation Error Modal -->
+        <template if:true={isValidationErrorModalOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container" style="max-width: 640px;">
+                    <header class="slds-modal__header" style="background: #3e1b1b; color: #ff8888; border-bottom: 1px solid #e74c3c; border-radius: 8px 8px 0 0; padding: 16px 24px;">
+                        <h2 class="slds-modal__title slds-hyphenate" style="font-weight: 700; font-size: 1.15rem;">
+                            ❌ Pre-Commit Target Org Validation Failed
+                        </h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #152233; color: #e2e8f0;">
+                        <div class="slds-p-around_small slds-m-bottom_medium" style="background: #3e1b1b; border: 1px solid #e74c3c; border-radius: 6px; color: #ff8888;">
+                            <div style="font-weight: bold; font-size: 14px;">Target Org Compilation Failure</div>
+                            <div style="font-size: 12px; margin-top: 4px; color: #ffcccc; white-space: pre-wrap;">
+                                {validationErrorMessage}
+                            </div>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #94a3b8;">
+                            Please resolve the reported compilation errors or missing dependencies in your Sandbox, re-run Quality Gate Scan, and validate again before committing.
+                        </p>
+                    </div>
+                    <footer class="slds-modal__footer" style="background: #152233; border-top: 1px solid #2c3e50; border-radius: 0 0 8px 8px;">
+                        <lightning-button label="Close & Fix Issues" variant="destructive" onclick={handleCloseValidationErrorModal}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

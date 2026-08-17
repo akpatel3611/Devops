@@ -1,0 +1,167 @@
+.main-container {
+    font-family: 'Salesforce Sans', Arial, sans-serif;
+}
+
+.header-card {
+    background: linear-gradient(135deg, #16325c 0%, #0b1f3a 100%);
+    border-radius: 8px;
+    color: #ffffff;
+}
+
+.header-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.header-subtitle {
+    font-size: 0.85rem;
+    color: #b0c4df;
+}
+
+.status-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    background: #ecebea;
+    color: #3e3e3c;
+}
+
+.status-badge[data-status="In Progress"],
+.status-badge[data-status="Deploying"] {
+    background: #0070d2;
+    color: #ffffff;
+}
+
+.status-badge[data-status="Completed"] {
+    background: #4bca81;
+    color: #ffffff;
+}
+
+.status-badge[data-status="Waiting For Pull Request Approval"] {
+    background: #ffb75d;
+    color: #081c42;
+}
+
+.status-badge[data-status="Failed"] {
+    background: #c23934;
+    color: #ffffff;
+}
+
+.pipeline-bar {
+    background: #f3f5f8;
+    border: 1px solid #dddbda;
+    border-radius: 8px;
+}
+
+.env-pill {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 20px;
+    border-radius: 6px;
+    min-width: 180px;
+    text-align: center;
+}
+
+.source-env {
+    background: #e0f2fe;
+    border: 1px solid #7dd3fc;
+}
+
+.target-env {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+}
+
+.env-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.5px;
+}
+
+.env-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.approval-banner {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-left: 6px solid #f59e0b;
+    border-radius: 8px;
+    color: #ffffff;
+}
+
+.approval-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f59e0b;
+}
+
+.approval-desc {
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    margin-top: 4px;
+}
+
+.story-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #e2e8f0;
+    color: #1e293b;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 16px;
+    margin: 4px;
+    font-size: 0.85rem;
+}
+
+.section-heading {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.percent-label {
+    font-weight: 700;
+    color: #0070d2;
+    font-size: 0.95rem;
+}
+
+.progress-track {
+    width: 100%;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+    transition: width 0.4s ease;
+}
+
+.step-row {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.step-name {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.step-detail {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.step-time {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+}

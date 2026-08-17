@@ -1,0 +1,228 @@
+<template>
+    <div class="split-screen-container">
+        <!-- Copado-Style Top Notification Strip Banner -->
+        <template if:true={showTopBanner}>
+            <div class={bannerClass}>
+                <div class="banner-content">
+                    <span class="banner-icon">✔</span>
+                    <span class="banner-text">
+                        {bannerMessage}
+                        <template if:true={prUrl}>
+                            <a href={prUrl} target="_blank" rel="noopener noreferrer" class="banner-link">
+                                View Pull Request #{prNumber}
+                            </a>
+                        </template>
+                    </span>
+                </div>
+                <button class="banner-close-btn" title="Dismiss" onclick={handleDismissBanner}>✕</button>
+            </div>
+        </template>
+
+        <!-- Title Header -->
+        <div class="header-section">
+            <h1 class="story-id-title">{headerDisplayTitle}</h1>
+        </div>
+
+        <hr class="divider-line" />
+
+        <!-- Split Grid Body -->
+        <div class="slds-grid slds-wrap slds-gutters split-body">
+            <!-- Left Column: Details -->
+            <div class="slds-col slds-size_1-of-2 left-column">
+                <div class="details-list">
+                    <template if:false={isMultiStory}>
+                        <div class="detail-row">
+                            <span class="detail-label">Title</span>
+                            <div class="detail-value">{userStoryTitle}</div>
+                        </div>
+                    </template>
+                    <template if:true={isMultiStory}>
+                        <div class="detail-row">
+                            <span class="detail-label">Included User Stories ({linkedStoriesCount})</span>
+                            <div class="detail-value">
+                                <div class="slds-m-top_xx-small" style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                    <template for:each={linkedStoryNames} for:item="sName">
+                                        <span key={sName} class="slds-badge slds-theme_info" style="font-weight: 600; border-radius: 12px; padding: 2px 8px;">
+                                            {sName}
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="detail-row">
+                        <span class="detail-label">Project</span>
+                        <div class="detail-value link-style">{projectName}</div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Release</span>
+                        <div class="detail-value link-style">{releaseName}</div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Credential</span>
+                        <div class="detail-value link-style">{credentialName}</div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Source Environment</span>
+                        <div class="detail-value link-style">{sourceEnvName}</div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Target Environment</span>
+                        <div class="detail-value link-style">{targetEnvName}</div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <div class="detail-value">{status}</div>
+                    </div>
+
+                    <!-- PR Info Header Card -->
+                    <div class="detail-row slds-m-top_x-small" style="background: #1a2736; padding: 8px 12px; border-radius: 6px; border: 1px solid #2e3e50;">
+                        <span class="detail-label" style="color: #4b9bfa; font-weight: bold;">Pull Request</span>
+                        <div class="detail-value">
+                            <a href="javascript:void(0);" onclick={handleOpenPRUrl} style="color: #4b9bfa; font-weight: 600; text-decoration: underline;">
+                                #{prNumber}: {featureBranchName} ➔ {targetEnvName}
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Merge Conflict Alert Banner -->
+                    <template if:true={hasConflict}>
+                        <div class="slds-m-top_small slds-p-around_small" style="background: #3e1b1b; border: 1px solid #e74c3c; border-radius: 6px; color: #ff8888;">
+                            <div style="font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                Merge Conflict Detected in GitHub PR #{prNumber}
+                            </div>
+                            <div style="font-size: 12px; margin-top: 4px; color: #ffcccc;">
+                                Please resolve conflicts directly on GitHub before merging.
+                            </div>
+                            <div class="slds-m-top_x-small">
+                                <a href={prUrl} target="_blank" rel="noopener noreferrer" class="slds-button slds-button_destructive" style="text-decoration: none; padding: 2px 10px; font-weight: bold; font-size: 12px;">
+                                    Resolve Conflict on GitHub UI
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+
+                </div>
+            </div>
+
+            <!-- Right Column: Checklist Steps & Deep Debug Console with Scrollbar -->
+            <div class="slds-col slds-size_1-of-2 right-column">
+                <div class="steps-container">
+                    <div class="steps-list">
+                        <template for:each={steps} for:item="step">
+                            <div key={step.id} class="step-line">
+                                <span class={step.iconClass}>{step.iconSymbol}</span>
+                                <span class="step-text">{step.name}</span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Deep Debug / Root Cause Panel when Real Deployment Failed -->
+                <template if:true={isRealDeploymentFailed}>
+                    <div class="slds-m-top_small slds-p-around_small slds-theme_error slds-box slds-box_x-small" style="border-radius: 6px; border-left: 5px solid #c23934;">
+                        <div class="slds-media slds-media_center">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name="utility:error" variant="inverse" size="small"></lightning-icon>
+                            </div>
+                            <div class="slds-media__body">
+                                <h2 class="slds-text-heading_small slds-text-color_inverse" style="font-weight: bold; font-size: 13px;">Deployment Failed — Root Cause Analysis</h2>
+                                <p class="slds-text-body_small slds-text-color_inverse slds-m-top_xx-small" style="font-size: 12px;">{failedErrorMessage}</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <hr class="divider-line slds-m-top_medium slds-m-bottom_medium" />
+
+        <!-- Actions Toolbar (Placed right below the divider line) -->
+        <div class="action-toolbar slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+            <lightning-button label="Go Back to User Story" variant="neutral" onclick={handleGoBack} class="back-btn"></lightning-button>
+            
+            <div class="slds-grid slds-grid_vertical-align-center" style="gap: 8px;">
+                <template if:true={isRealDeploymentFailed}>
+                    <lightning-button label="Fix & Re-Commit" variant="neutral" onclick={handleFixAndRecommit}></lightning-button>
+                    <lightning-button label="Retry Deployment" variant="destructive" icon-name="utility:refresh" onclick={handleRetryDeployment}></lightning-button>
+                </template>
+                <lightning-button 
+                    label="Deploy" 
+                    variant="brand" 
+                    disabled={isDeployDisabled}
+                    onclick={handleDeployRequest}>
+                </lightning-button>
+            </div>
+        </div>
+
+        <!-- Live Validation Modal Popup -->
+        <template if:true={showValidationModal}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open slds-modal_small">
+                <div class="slds-modal__container" style="max-width: 600px;">
+                    <!-- Modal Header -->
+                    <header class="slds-modal__header" style="background: #1a2736; color: #ffffff; border-bottom: 1px solid #2e3e50;">
+                        <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={handleCloseValidationModal}>
+                            ✕
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-modal__title slds-hyphenate" style="font-weight: bold; font-size: 16px;">
+                            Real-Time Dry-Run Validation Console
+                        </h2>
+                        <p class="slds-m-top_x-small" style="font-size: 12px; color: #8ba2b9;">
+                            Validating metadata against {targetEnvName} Org (Check-Only Mode)
+                        </p>
+                    </header>
+
+                    <!-- Modal Body (Live Streaming Logs) -->
+                    <div class="slds-modal__content slds-p-around_medium" style="background: #0d1520; color: #e1e8ed; max-height: 350px; overflow-y: auto;">
+                        <div class="steps-list">
+                            <template for:each={steps} for:item="step">
+                                <div key={step.id} class="step-line" style="display: flex; align-items: center; margin-bottom: 8px; font-size: 13px;">
+                                    <span class={step.iconClass} style="margin-right: 8px; font-weight: bold;">{step.iconSymbol}</span>
+                                    <span class="step-text" style="color: #c9d1d9;">{step.name}</span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Pass Success Banner inside Modal -->
+                        <template if:true={isValidated}>
+                            <div class="slds-m-top_medium slds-p-around_small" style="background: #0f382c; border: 1px solid #27ae60; border-radius: 6px; color: #a3e4d7;">
+                                <div style="font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                                    Dry-Run Validation Passed Successfully!
+                                </div>
+                                <div style="font-size: 12px; margin-top: 4px; color: #d4efdf;">
+                                    All metadata components & Apex classes are compile-safe in {targetEnvName}. Deploy button is now unlocked!
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Failure Banner inside Modal -->
+                        <template if:true={isValidationFailed}>
+                            <div class="slds-m-top_medium slds-p-around_small" style="background: #3e1b1b; border: 1px solid #e74c3c; border-radius: 6px; color: #ff8888;">
+                                <div style="font-weight: bold; font-size: 14px;">
+                                    Validation Failed
+                                </div>
+                                <div style="font-size: 12px; margin-top: 4px; color: #ffcccc;">
+                                    {failedErrorMessage}
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <footer class="slds-modal__footer" style="background: #152233; border-top: 1px solid #2c3e50; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <template if:true={isValidationFailed}>
+                                <lightning-button label="Retry Validation" variant="destructive" icon-name="utility:refresh" onclick={handleValidateChanges}></lightning-button>
+                            </template>
+                        </div>
+                        <lightning-button label="Close & Proceed" variant="brand" onclick={handleCloseValidationModal}></lightning-button>
+                    </footer>
+                </div>
+            </section>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

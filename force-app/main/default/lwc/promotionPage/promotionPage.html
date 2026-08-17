@@ -1,0 +1,31 @@
+<template>
+    <div class="promo-root">
+        <!-- ============ PIPELINE CHEVRON PATH ============ -->
+        <div class="promo-path-section">
+            <div class="slds-path slds-path_has-coaching">
+                <div class="slds-grid slds-path__track">
+                    <div class="slds-grid slds-path__scroller-container">
+                        <div class="slds-path__scroller">
+                            <div class="slds-path__scroller_inner">
+                                <ul class="slds-path__nav" role="listbox" aria-orientation="horizontal">
+                                    <template for:each={pathSteps} for:item="step">
+                                        <li key={step.name} class={step.className} role="presentation">
+                                            <a class="slds-path__link" href="javascript:void(0);" role="option" tabindex="-1">
+                                                <span class="slds-path__stage">
+                                                    <template if:true={step.isComplete}>
+                                                        <lightning-icon icon-name="utility:check" size="xx-small" class="check-icon"></lightning-icon>
+                                                    </template>
+                                                </span>
+                                                <span class="slds-path__title">{step.name}</span>
+                                            </a>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

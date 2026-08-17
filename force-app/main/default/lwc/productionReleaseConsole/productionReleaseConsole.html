@@ -1,0 +1,132 @@
+<template>
+    <div class="split-screen-container">
+        <!-- Copado Top Strip Banner -->
+        <div class={bannerClass}>
+            <div class="banner-content">
+                <span class="banner-icon">{bannerIcon}</span>
+                <span class="banner-text">
+                    {bannerMessage}
+                    <template if:true={hasPullRequest}>
+                        <a href={prUrl} target="_blank" rel="noopener noreferrer" class="banner-link">
+                            {pullRequestLinkText}
+                        </a>
+                    </template>
+                </span>
+            </div>
+        </div>
+
+        <!-- Centered Header Section -->
+        <div class="header-section">
+            <h1 class="story-id-title">{headerDisplayTitle}</h1>
+        </div>
+
+        <hr class="divider-line" />
+
+        <!-- Split Grid Body -->
+        <div class="slds-grid slds-wrap slds-gutters split-body">
+            <!-- Left Column: Field Details -->
+            <div class="slds-col slds-size_1-of-2 left-column">
+                <div class="details-list">
+                    <div class="detail-row">
+                        <span class="detail-label">Included User Stories ({linkedStoriesCount})</span>
+                        <div class="detail-value">
+                            <div class="slds-m-top_xx-small" style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                <template for:each={linkedStoryNames} for:item="sName">
+                                    <span key={sName} class="slds-badge slds-theme_info" style="font-weight: 600; border-radius: 12px; padding: 2px 8px;">
+                                        {sName}
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Project</span>
+                        <div class="detail-value link-style">{projectName}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Release</span>
+                        <div class="detail-value link-style">{releaseName}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Promotion Record</span>
+                        <div class="detail-value link-style" onclick={handleOpenPromotion}>{promotionName} ↗</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Deployment Record</span>
+                        <div class="detail-value link-style" onclick={handleOpenDeployment}>{deploymentName} ↗</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Source Environment</span>
+                        <div class="detail-value link-style">{sourceEnvName}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Target Environment</span>
+                        <div class="detail-value link-style">{targetEnvName}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <div class="detail-value" style="font-weight: 700; color: #1e293b;">{statusText}</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Git Branch Flow</span>
+                        <div class="detail-value" style="font-family: monospace; font-weight: 600;">{sourceEnvName} ➔ main</div>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Pull Request</span>
+                        <div class="detail-value">
+                            <template if:true={hasPullRequest}>
+                                <a href={prUrl} target="_blank" rel="noopener noreferrer" style="color: #0176d3; font-weight: 600; text-decoration: underline;">
+                                    {pullRequestDetailText}
+                                </a>
+                            </template>
+                            <template if:false={hasPullRequest}>
+                                <span style="font-style: italic; color: #64748b;">Pull request has not been created yet</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Live Deployment Execution Logs Console -->
+            <div class="slds-col slds-size_1-of-2 right-column">
+                <div class="terminal-title">REAL-TIME LOG STREAM CONSOLE</div>
+                <div class="terminal-console">
+                    <template if:true={hasLogs}>
+                        <div class="log-stream">
+                            <template for:each={logs} for:item="log">
+                                <div key={log.id} class={log.class}>{log.text}</div>
+                            </template>
+                        </div>
+                    </template>
+                    <template if:false={hasLogs}>
+                        <div class="terminal-idle">
+                            <div class="idle-line">[System] Console connected. Connection Idle.</div>
+                            <div class="idle-line">[System] Waiting for GitHub PR approval and final Merge (Phase 7) to start deployment execution...</div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider-line slds-m-top_medium" />
+
+        <!-- Bottom Action Toolbar -->
+        <div class="action-toolbar slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+            <button class="slds-button back-btn" onclick={handleReturnToPdCreator}>
+                ← Return to P&D Creator
+            </button>
+            <span style="font-size: 0.8rem; color: #64748b;">
+                Production Release Execution Console • Real-Time Pipeline
+            </span>
+        </div>
+    </div>
+</template>

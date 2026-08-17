@@ -1,4 +1,4 @@
-public with sharing class SchemaExplorerService {
+public with sharing class schemaExplorerService {
     public class RelatedObjectInfo {
         @AuraEnabled public String objectApiName;
         @AuraEnabled public String objectLabel;

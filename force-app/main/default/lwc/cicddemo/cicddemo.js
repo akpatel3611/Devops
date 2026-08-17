@@ -5,6 +5,7 @@ export default class Cicddemo extends LightningElement {
     // constructor() {
     //     super();
     //     console.log('cicddemo component initialized');
+    // full deployment test 3
     // }
     connectedCallback() {
         console.log('cicddemo component loaded');

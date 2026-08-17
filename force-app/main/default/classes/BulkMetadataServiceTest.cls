@@ -139,6 +139,7 @@ public class BulkMetadataServiceTest {
         field1.apiName = 'TestField1__c';
         field1.dataType = 'Text';
         field1.length = 255;
+        field1.relatedObject = 'TestObject__c';
 
         FieldDefinition field2 = new FieldDefinition();
         field2.rowKey = 'row-2';
@@ -263,5 +264,39 @@ public class BulkMetadataServiceTest {
         Test.stopTest();
 
         System.assertEquals(0, results.size(), 'Empty assignments should return empty list');
+    }
+
+    @IsTest
+    static void testGetExistingFields() {
+        Test.startTest();
+        List<Map<String, String>> fields = BulkMetadataService.getExistingFields('Account');
+        Test.stopTest();
+
+        System.assertNotEquals(null, fields, 'Should return list of existing fields');
+        System.assert(fields.size() > 0, 'Account should have permissionable fields');
+    }
+
+    @IsTest
+    static void testAssignFlsToExistingFieldsSuccess() {
+        Test.setMock(HttpCalloutMock.class, new MockHttpResponseGenerator(false, null));
+
+        ProfileFlsAssignment assignment = new ProfileFlsAssignment();
+        assignment.profileMetadataName = 'Admin';
+        assignment.profileLabel = 'System Administrator';
+        assignment.readAll = true;
+        assignment.editAll = true;
+
+        List<String> fieldApiNames = new List<String>{ 'Industry', 'Rating' };
+
+        Test.startTest();
+        List<BulkMetadataService.ProfileFlsResult> results = BulkMetadataService.assignFlsToExistingFields(
+            'Account',
+            fieldApiNames,
+            new List<ProfileFlsAssignment>{ assignment }
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, results.size(), 'Should return one result per profile');
+        System.assertEquals(true, results[0].success, 'FLS assignment for existing fields should succeed');
     }
 }

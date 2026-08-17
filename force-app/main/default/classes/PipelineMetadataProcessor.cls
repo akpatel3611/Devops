@@ -84,7 +84,7 @@ public with sharing class PipelineMetadataProcessor {
         String scanSource
     ) {
         Datetime startTime = System.now();
-        System.debug('PipelineMetadataProcessor execution started on: ' + startTime);
+        System.debug(LoggingLevel.INFO, '[PipelineMetadataProcessor.process] START - pipelineId: ' + pipelineId + ' | deploymentRequestId: ' + deploymentRequestId + ' | userStoryId: ' + userStoryId + ' | scanSource: ' + scanSource + ' | Files Count: ' + (files != null ? files.size() : 0));
         
         // Track errors and warnings internally via Set to avoid duplicates
         Set<String> warningSet = new Set<String>();
@@ -93,26 +93,30 @@ public with sharing class PipelineMetadataProcessor {
         try {
             // Step 1: Input Validation
             if (!validateInput(files, errorSet)) {
+                System.debug(LoggingLevel.WARN, '[PipelineMetadataProcessor.process] Warning: Input validation failed (no files to process).');
                 PipelineProcessorResult earlyResult = buildEarlyResult(pipelineId, deploymentRequestId, userStoryId, startTime, errorSet, warningSet);
-                System.debug('Early exit - no files to process');
                 return earlyResult;
             }
             
             // Step 2: Call Metadata Scanner Service
+            System.debug(LoggingLevel.DEBUG, '[PipelineMetadataProcessor.process] Step 2: Invoking MetadataScannerService...');
             MetadataScannerService.MetadataScannerResult scannerResult = scanMetadata(files, scanSource);
             
-            // Persist User Story Metadata components list before statistics update (Single Responsibility Principle)
+            // Persist User Story Metadata components list before statistics update
             if (userStoryId != null && scannerResult != null && scannerResult.metadataComponents != null) {
+                System.debug(LoggingLevel.FINE, '[PipelineMetadataProcessor.process] Persisting ' + scannerResult.metadataComponents.size() + ' metadata components for UserStory ID: ' + userStoryId);
                 UserStoryMetadataService.persistMetadata(userStoryId, scannerResult.metadataComponents);
             }
 
             ProcessorMetadataResult convertedResult = convertScannerResult(scannerResult, warningSet, errorSet);
+            System.debug(LoggingLevel.DEBUG, '[PipelineMetadataProcessor.process] Converted scanner result - Total: ' + convertedResult.metadataCount + ' | Deployable: ' + convertedResult.deployableFiles);
             
             // Analyze scanner success/errors
             Boolean hasProcessingErrors = !errorSet.isEmpty();
             String targetScanStatus = hasProcessingErrors ? STATUS_FAILED : STATUS_COMPLETED;
             
-            // Step 3, 4, 5: Persist runtime updates using separate runtime updater service (No direct DML)
+            // Step 3, 4, 5: Persist runtime updates using separate runtime updater service
+            System.debug(LoggingLevel.FINE, '[PipelineMetadataProcessor.process] Updating runtime objects - targetScanStatus: ' + targetScanStatus);
             updateRuntimeObjects(pipelineId, deploymentRequestId, userStoryId, convertedResult, targetScanStatus, errorSet);
             
             // Step 6: Build Success Result
@@ -126,11 +130,11 @@ public with sharing class PipelineMetadataProcessor {
                 warningSet, 
                 errorSet
             );
-            System.debug('PipelineMetadataProcessor completed successfully on: ' + System.now());
+            System.debug(LoggingLevel.INFO, '[PipelineProcessorResult.process] SUCCESS - Processed in ' + (System.now().getTime() - startTime.getTime()) + 'ms');
             return successResult;
             
         } catch (Exception e) {
-            System.debug('Exception encountered during PipelineMetadataProcessor execution: ' + e.getMessage() + '\nStack: ' + e.getStackTraceString());
+            System.debug(LoggingLevel.ERROR, '[PipelineMetadataProcessor.process] Exception: ' + e.getMessage() + ' | StackTrace: ' + e.getStackTraceString());
             errorSet.add('Processor System Error: ' + e.getMessage());
             return buildFailureResult(pipelineId, deploymentRequestId, userStoryId, startTime, warningSet, errorSet);
         }

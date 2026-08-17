@@ -107,20 +107,24 @@ public with sharing class PromotionApprovalRuntimeService {
      * and advances the Promotion to the next stage.
      */
     public static ApprovalResult approvePromotion(Id promotionId) {
+        System.debug(LoggingLevel.INFO, '[PromotionApprovalRuntimeService.approvePromotion] START - promotionId: ' + promotionId);
         if (promotionId == null) {
+            System.debug(LoggingLevel.WARN, '[PromotionApprovalRuntimeService.approvePromotion] Warning: promotionId is null.');
             return createFailedResult('Promotion ID cannot be null.');
         }
 
         try {
             ValidationHolder valHolder = validatePromotionForStageExecution(promotionId);
             if (!valHolder.isValid) {
+                System.debug(LoggingLevel.WARN, '[PromotionApprovalRuntimeService.approvePromotion] Validation Failed - Message: ' + valHolder.errorMessage);
                 return createFailedResult(valHolder.errorMessage);
             }
 
-            // All validations passed. Delegate navigation to the engine
+            System.debug(LoggingLevel.DEBUG, '[PromotionApprovalRuntimeService.approvePromotion] Validations passed. Delegating stage navigation to PipelinePromotionExecutionEngine...');
             PipelinePromotionExecutionEngine.EngineResult engRes = 
                 PipelinePromotionExecutionEngine.advanceToNextStage(promotionId);
 
+            System.debug(LoggingLevel.INFO, '[PromotionApprovalRuntimeService.approvePromotion] SUCCESS - Engine response: ' + engRes.status + ' | Message: ' + engRes.message);
             ApprovalResult result = new ApprovalResult();
             result.success = engRes.success;
             result.message = engRes.message;
@@ -130,6 +134,7 @@ public with sharing class PromotionApprovalRuntimeService {
             return result;
 
         } catch (Exception ex) {
+            System.debug(LoggingLevel.ERROR, '[PromotionApprovalRuntimeService.approvePromotion] Exception: ' + ex.getMessage() + ' | StackTrace: ' + ex.getStackTraceString());
             return createFailedResult('Failed to approve promotion: ' + ex.getMessage());
         }
     }
@@ -138,7 +143,9 @@ public with sharing class PromotionApprovalRuntimeService {
      * Rejects the promotion, halting execution and setting status to Failed.
      */
     public static ApprovalResult rejectPromotion(Id promotionId, String reason) {
+        System.debug(LoggingLevel.INFO, '[PromotionApprovalRuntimeService.rejectPromotion] START - promotionId: ' + promotionId + ' | Reason: ' + reason);
         if (promotionId == null) {
+            System.debug(LoggingLevel.WARN, '[PromotionApprovalRuntimeService.rejectPromotion] Warning: promotionId is null.');
             return createFailedResult('Promotion ID cannot be null.');
         }
 
