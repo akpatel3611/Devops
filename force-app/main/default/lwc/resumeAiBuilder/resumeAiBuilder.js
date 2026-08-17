@@ -14,6 +14,9 @@ export default class ResumeAiBuilder extends LightningElement {
         this.uploadedFileId = uploadedFiles[0].contentVersionId;
     }
 
+    // full deployment test
+
+    
     // Jab user prompt type karta hai
     handlePromptChange(event) {
         this.promptValue = event.target.value;
@@ -51,4 +54,3 @@ export default class ResumeAiBuilder extends LightningElement {
         });
     }
 }
-/* Simulated metadata content for resumeAiBuilder (LightningComponentBundle) */
