@@ -300,3 +300,4 @@ public class BulkMetadataServiceTest {
         System.assertEquals(true, results[0].success, 'FLS assignment for existing fields should succeed');
     }
 }
+// DevOps migration marker
