@@ -7,6 +7,8 @@ import deploySchema from "@salesforce/apex/BulkMetadataService.deploySchema";
 import insertRecords from "@salesforce/apex/BulkMetadataService.insertRecords";
 import getProfiles from "@salesforce/apex/BulkMetadataService.getProfiles";
 import assignProfileFls from "@salesforce/apex/BulkMetadataService.assignProfileFls";
+import getExistingFields from "@salesforce/apex/BulkMetadataService.getExistingFields";
+import assignFlsToExistingFields from "@salesforce/apex/BulkMetadataService.assignFlsToExistingFields";
 
 export default class BulkMetadataCreator extends LightningElement {
   @track objectOptions = [];
@@ -46,6 +48,22 @@ export default class BulkMetadataCreator extends LightningElement {
   @track profileSearchTerm = "";
   @track showProfileDropdown = false;
   @track flsResults = [];
+
+  // FLS Manager Tab state
+  @track flsSelectedObject = "";
+  @track flsObjectSearchTerm = "";
+  @track showFlsObjectDropdown = false;
+  @track flsFields = [];
+  @track flsFieldFilter = "";
+  @track isFlsFieldsLoading = false;
+  @track flsSelectedProfiles = [];
+  @track flsProfileSearchTerm = "";
+  @track showFlsProfileDropdown = false;
+  @track flsManagerResults = [];
+  suppressFlsObjectBlur = false;
+  suppressFlsProfileBlur = false;
+
+ /// full deployment test
 
   objectModeOptions = [
     { label: "Existing Object", value: "existing" },
@@ -183,12 +201,10 @@ export default class BulkMetadataCreator extends LightningElement {
         isSelected: opt.value === row.dataType
       }));
 
-      const formulaTypeOptionsWithSelection = this.formulaTypeOptions.map(
-        (opt) => ({
-          ...opt,
-          isSelected: opt.value === row.formulaType
-        })
-      );
+      const formulaTypeOptionsWithSelection = this.formulaTypeOptions.map((opt) => ({
+        ...opt,
+        isSelected: opt.value === row.formulaType
+      }));
 
       const resultRow = this.getDeploymentRowResult(row.key);
       const statusClass = resultRow
@@ -204,11 +220,7 @@ export default class BulkMetadataCreator extends LightningElement {
         dataTypeOptionsWithSelection,
         formulaTypeOptionsWithSelection,
         isNoFormulaTypeSelected: !row.formulaType,
-        resultStatus: resultRow
-          ? resultRow.success
-            ? "Success"
-            : resultRow.status
-          : "",
+        resultStatus: resultRow ? (resultRow.success ? "Success" : resultRow.status) : "",
         resultMessage: resultRow ? resultRow.message : "",
         hasResult: Boolean(resultRow),
         statusClass
@@ -256,9 +268,7 @@ export default class BulkMetadataCreator extends LightningElement {
   }
 
   get hasDeploymentFailures() {
-    return Boolean(
-      this.deploymentResult && this.deploymentResult.failureCount > 0
-    );
+    return Boolean(this.deploymentResult && this.deploymentResult.failureCount > 0);
   }
 
   get hasFailedRowsToRetry() {
@@ -297,7 +307,9 @@ export default class BulkMetadataCreator extends LightningElement {
       statusClass: r.success
         ? "status-pill status-pill-success"
         : "status-pill status-pill-error",
-      summaryLine: r.success ? `${r.fieldsApplied} field(s) updated` : r.message
+      summaryLine: r.success
+        ? `${r.fieldsApplied} field(s) updated`
+        : r.message
     }));
   }
 
@@ -445,8 +457,7 @@ export default class BulkMetadataCreator extends LightningElement {
     const updatedRows = [...this.fieldRows];
 
     updatedRows[index].dataType = typeSelected;
-    updatedRows[index].isText =
-      typeSelected === "Text" || typeSelected === "TextArea";
+    updatedRows[index].isText = typeSelected === "Text" || typeSelected === "TextArea";
     updatedRows[index].isLookup =
       typeSelected === "Lookup" || typeSelected === "ExternalLookup";
     updatedRows[index].isAutoNumber = typeSelected === "AutoNumber";
@@ -480,19 +491,14 @@ export default class BulkMetadataCreator extends LightningElement {
       : "";
     updatedRows[index].displayFormat =
       typeSelected === "AutoNumber" ? "AN-{0000}" : null;
-    updatedRows[index].startingNumber =
-      typeSelected === "AutoNumber" ? 1 : null;
+    updatedRows[index].startingNumber = typeSelected === "AutoNumber" ? 1 : null;
     updatedRows[index].formula = typeSelected === "Formula" ? "" : null;
     updatedRows[index].formulaType = typeSelected === "Formula" ? "Text" : null;
     updatedRows[index].picklistValues = updatedRows[index].isPicklist
       ? "Value 1, Value 2, Value 3"
       : null;
     updatedRows[index].visibleLines =
-      typeSelected === "Html"
-        ? 10
-        : typeSelected === "MultiselectPicklist"
-          ? 4
-          : null;
+      typeSelected === "Html" ? 10 : typeSelected === "MultiselectPicklist" ? 4 : null;
     updatedRows[index].scale =
       typeSelected === "Location"
         ? 2
@@ -596,9 +602,7 @@ export default class BulkMetadataCreator extends LightningElement {
     const updatedRows = [...this.fieldRows];
     if (updatedRows[index]) {
       updatedRows[index].showDropdown = false;
-      const matched = this.findObjectMatch(
-        updatedRows[index].relatedObjectSearchTerm
-      );
+      const matched = this.findObjectMatch(updatedRows[index].relatedObjectSearchTerm);
       if (matched) {
         updatedRows[index].relatedObject = matched.value;
         updatedRows[index].relatedObjectSearchTerm = matched.label;
@@ -606,9 +610,7 @@ export default class BulkMetadataCreator extends LightningElement {
         const current = this.objectOptions.find(
           (opt) => opt.value === updatedRows[index].relatedObject
         );
-        updatedRows[index].relatedObjectSearchTerm = current
-          ? current.label
-          : "";
+        updatedRows[index].relatedObjectSearchTerm = current ? current.label : "";
       } else {
         updatedRows[index].relatedObjectSearchTerm = "";
       }
@@ -661,11 +663,7 @@ export default class BulkMetadataCreator extends LightningElement {
       return;
     }
     if (this.fieldRows.length === 0) {
-      this.showToast(
-        "Error",
-        "Please define at least one field to deploy.",
-        "error"
-      );
+      this.showToast("Error", "Please define at least one field to deploy.", "error");
       return;
     }
 
@@ -712,29 +710,20 @@ export default class BulkMetadataCreator extends LightningElement {
     }
 
     try {
-      const result = await deploySchema({
-        objDef: objDefPayload,
-        fields: fieldsPayload
-      });
+      const result = await deploySchema({ objDef: objDefPayload, fields: fieldsPayload });
       this.deploymentResult = result;
       this.deploymentFilter = result.failureCount > 0 ? "failed" : "all";
 
       const toastVariant = result.failureCount > 0 ? "warning" : "success";
       const toastTitle =
-        result.failureCount > 0
-          ? "Deployment Completed With Issues"
-          : "Deployment Successful";
+        result.failureCount > 0 ? "Deployment Completed With Issues" : "Deployment Successful";
       this.showToast(toastTitle, result.overallMessage, toastVariant);
 
       await refreshApex(this.wiredObjectsResult);
 
       // FLS step — runs only when fields succeeded and FLS is enabled
       this.flsResults = [];
-      if (
-        this.flsEnabled &&
-        this.selectedProfiles.length > 0 &&
-        result.successCount > 0
-      ) {
+      if (this.flsEnabled && this.selectedProfiles.length > 0 && result.successCount > 0) {
         const successfulFields = result.fieldResults
           .filter((r) => r.success)
           .map((r) => `${r.targetObject}.${r.apiName}`);
@@ -750,9 +739,7 @@ export default class BulkMetadataCreator extends LightningElement {
             successfulFieldApiNames: successfulFields
           });
 
-          const flsSuccessCount = this.flsResults.filter(
-            (r) => r.success
-          ).length;
+          const flsSuccessCount = this.flsResults.filter((r) => r.success).length;
           const flsFailCount = this.flsResults.length - flsSuccessCount;
           if (flsFailCount > 0) {
             this.showToast(
@@ -768,10 +755,7 @@ export default class BulkMetadataCreator extends LightningElement {
             );
           }
         } catch (flsError) {
-          const flsMsg =
-            flsError?.body?.message ||
-            flsError?.message ||
-            "FLS assignment failed.";
+          const flsMsg = flsError?.body?.message || flsError?.message || "FLS assignment failed.";
           this.showToast("FLS Assignment Failed", flsMsg, "error");
         }
       }
@@ -782,8 +766,7 @@ export default class BulkMetadataCreator extends LightningElement {
         this.resetSchemaForm();
       }
     } catch (error) {
-      const message =
-        error?.body?.message || error?.message || "Deployment failed.";
+      const message = error?.body?.message || error?.message || "Deployment failed.";
       this.showToast("Deployment Failed", message, "error");
     } finally {
       this.isLoading = false;
@@ -1007,8 +990,7 @@ export default class BulkMetadataCreator extends LightningElement {
   findObjectMatch(searchTerm) {
     const term = (searchTerm || "").toLowerCase();
     return this.objectOptions.find(
-      (opt) =>
-        opt.value.toLowerCase() === term || opt.label.toLowerCase() === term
+      (opt) => opt.value.toLowerCase() === term || opt.label.toLowerCase() === term
     );
   }
 
@@ -1035,9 +1017,7 @@ export default class BulkMetadataCreator extends LightningElement {
         errors.push(`${rowLabel}: picklist fields require values.`);
       }
       if (row.dataType === "Summary") {
-        errors.push(
-          `${rowLabel}: roll-up summary fields are not supported yet.`
-        );
+        errors.push(`${rowLabel}: roll-up summary fields are not supported yet.`);
       }
     });
 
@@ -1085,9 +1065,7 @@ export default class BulkMetadataCreator extends LightningElement {
   }
 
   getDeploymentRowResult(rowKey) {
-    return this.deploymentResult?.fieldResults?.find(
-      (row) => row.rowKey === rowKey
-    );
+    return this.deploymentResult?.fieldResults?.find((row) => row.rowKey === rowKey);
   }
 
   clearDeploymentResult() {
@@ -1163,10 +1141,10 @@ export default class BulkMetadataCreator extends LightningElement {
     this.showProfileDropdown = true;
   }
 
-  handleProfileDropdownMouseDown(event) {
-    event.preventDefault();
-    this.suppressProfileBlur = true;
-  }
+  handleProfileOptionMouseDown() {
+  // Sirf blur ko suppress karein taaki click register hone se pehle dropdown hide na ho jaye
+  this.suppressProfileBlur = true;
+}
 
   handleProfileBlur() {
     if (this.suppressProfileBlur) {
@@ -1178,52 +1156,40 @@ export default class BulkMetadataCreator extends LightningElement {
   }
 
   handleProfileSelect(event) {
-    const el = event.currentTarget;
-    if (!el || !el.dataset) {
-      return;
-    }
-    const value = el.dataset.value;
-    const label = el.dataset.label;
-    const metadataName = el.dataset.metadataName;
-    // Bail out if the click target was detached by a blur re-render —
-    // adding a profile with undefined key crashes LWC's keyed for:each.
-    if (!value || !label) {
-      return;
-    }
-    if (!this.selectedProfiles.find((p) => p.value === value)) {
-      this.selectedProfiles = [
-        ...this.selectedProfiles,
-        {
-          value,
-          label,
-          metadataName,
-          readAll: true,
-          editAll: true,
-          isEditDisabled: false
-        }
-      ];
-    }
-    this.profileSearchTerm = "";
-    this.showProfileDropdown = false;
-  }
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Ab event.currentTarget perfect work karega kyunki ye seedha onclick se trigger ho raha hai
+  const value = event.currentTarget.dataset.value;
+  const label = event.currentTarget.dataset.label;
+  const metadataName = event.currentTarget.dataset.metadataName;
 
-  handleChipRemoveMouseDown(event) {
-    // Prevent the search input from losing focus (blur) when clicking the × button.
-    // Without this, blur fires first → DOM re-renders → click gets null target → JS crash.
-    event.preventDefault();
+  if (!this.selectedProfiles.find((p) => p.value === value)) {
+    this.selectedProfiles = [
+      ...this.selectedProfiles,
+      { value, label, metadataName, readAll: true, editAll: true, isEditDisabled: false }
+    ];
+  }
+  
+  this.profileSearchTerm = "";
+  this.showProfileDropdown = false;
+  this.suppressProfileBlur = false; // Flag ko wapas reset kar dein
+  this.clearProfileSearchInput();
+}
+
+  clearProfileSearchInput() {
+    const profileInput = this.template.querySelector(".fls-profile-input");
+    if (profileInput) {
+      profileInput.value = "";
+      profileInput.blur();
+    }
   }
 
   handleProfileRemove(event) {
     event.preventDefault();
     event.stopPropagation();
-    const el = event.currentTarget;
-    if (!el || !el.dataset || !el.dataset.value) {
-      return;
-    }
-    const value = el.dataset.value;
-    this.selectedProfiles = this.selectedProfiles.filter(
-      (p) => p.value !== value
-    );
+    const value = event.currentTarget.dataset.value;
+    this.selectedProfiles = this.selectedProfiles.filter((p) => p.value !== value);
   }
 
   handleProfileReadChange(event) {
@@ -1252,4 +1218,384 @@ export default class BulkMetadataCreator extends LightningElement {
     };
     this.selectedProfiles = updated;
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // FLS MANAGER TAB HANDLERS
+  // ══════════════════════════════════════════════════════════════════════
+
+  get filteredFlsObjectOptions() {
+    if (!this.flsObjectSearchTerm) {
+      return this.objectOptions;
+    }
+    const term = this.flsObjectSearchTerm.toLowerCase();
+    return this.objectOptions.filter(
+      (opt) =>
+        opt.label.toLowerCase().includes(term) ||
+        opt.value.toLowerCase().includes(term)
+    );
+  }
+
+  handleFlsObjectSearch(event) {
+    this.flsObjectSearchTerm = event.target.value;
+    this.showFlsObjectDropdown = true;
+  }
+
+  handleFlsObjectFocus() {
+    this.showFlsObjectDropdown = true;
+  }
+
+  handleFlsObjectBlur() {
+    if (this.suppressFlsObjectBlur) {
+      return;
+    }
+    this.showFlsObjectDropdown = false;
+  }
+
+  handleFlsObjectOptionMouseDown() {
+    this.suppressFlsObjectBlur = true;
+  }
+
+  handleFlsObjectSelect(event) {
+    const value = event.currentTarget.dataset.value;
+    const label = event.currentTarget.dataset.label;
+    this.flsSelectedObject = value;
+    this.flsObjectSearchTerm = label || value;
+    this.showFlsObjectDropdown = false;
+    this.suppressFlsObjectBlur = false;
+    this.loadFlsFields(value);
+  }
+
+  async loadFlsFields(objectApiName) {
+    if (!objectApiName) {
+      this.flsFields = [];
+      return;
+    }
+    this.isFlsFieldsLoading = true;
+    try {
+      const result = await getExistingFields({ objectApiName });
+      this.flsFields = (result || []).map((f) => ({
+        ...f,
+        isCustom: f.isCustom === "true" || f.isCustom === true,
+        selected: false
+      }));
+    } catch (error) {
+      this.showToast("Error loading fields", this.extractErrorMessage(error), "error");
+      this.flsFields = [];
+    } finally {
+      this.isFlsFieldsLoading = false;
+    }
+  }
+
+  get filteredFlsProfileOptions() {
+    const selectedSet = new Set(
+      this.flsSelectedProfiles.map((p) => String(p.value || "").toLowerCase())
+    );
+    let options = this.profileOptions || [];
+    if (this.flsProfileSearchTerm) {
+      const term = this.flsProfileSearchTerm.toLowerCase();
+      options = options.filter((opt) =>
+        opt.label.toLowerCase().includes(term)
+      );
+    }
+    return options.map((opt) => {
+      const isSelected = selectedSet.has(String(opt.value || "").toLowerCase());
+      return {
+        ...opt,
+        isSelected: isSelected,
+        checkboxClass: isSelected
+          ? "fls-custom-checkbox checked"
+          : "fls-custom-checkbox"
+      };
+    });
+  }
+
+  get flsSelectedProfilesCount() {
+    return this.flsSelectedProfiles.length;
+  }
+
+  get isAllFlsProfilesRead() {
+    return (
+      this.flsSelectedProfiles.length > 0 &&
+      this.flsSelectedProfiles.every((p) => p.readAll)
+    );
+  }
+
+  get isAllFlsProfilesEdit() {
+    return (
+      this.flsSelectedProfiles.length > 0 &&
+      this.flsSelectedProfiles.every((p) => p.editAll)
+    );
+  }
+
+  handleFlsSelectAdminProfile() {
+    const adminOpt = this.profileOptions.find(
+      (p) =>
+        p.label.toLowerCase() === "system administrator" ||
+        p.value.toLowerCase() === "system administrator"
+    );
+    if (
+      adminOpt &&
+      !this.flsSelectedProfiles.find((p) => p.value === adminOpt.value)
+    ) {
+      this.flsSelectedProfiles = [
+        ...this.flsSelectedProfiles,
+        {
+          value: adminOpt.value,
+          label: adminOpt.label,
+          metadataName: adminOpt.metadataName,
+          readAll: true,
+          editAll: true,
+          isEditDisabled: false
+        }
+      ];
+    }
+  }
+
+  handleFlsSelectAllProfiles() {
+    this.flsSelectedProfiles = this.profileOptions.map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+      metadataName: opt.metadataName,
+      readAll: true,
+      editAll: true,
+      isEditDisabled: false
+    }));
+  }
+
+  handleFlsClearAllProfiles() {
+    this.flsSelectedProfiles = [];
+  }
+
+  handleFlsBulkReadToggle(event) {
+    const isChecked = event.target.checked;
+    this.flsSelectedProfiles = this.flsSelectedProfiles.map((p) => ({
+      ...p,
+      readAll: isChecked,
+      editAll: isChecked ? p.editAll : false,
+      isEditDisabled: !isChecked
+    }));
+  }
+
+  handleFlsBulkEditToggle(event) {
+    const isChecked = event.target.checked;
+    this.flsSelectedProfiles = this.flsSelectedProfiles.map((p) => ({
+      ...p,
+      editAll: isChecked,
+      readAll: isChecked ? true : p.readAll,
+      isEditDisabled: false
+    }));
+  }
+
+  handleFlsProfileSearch(event) {
+    this.flsProfileSearchTerm = event.target.value;
+    this.showFlsProfileDropdown = true;
+  }
+
+  handleFlsProfileFocus() {
+    this.showFlsProfileDropdown = true;
+  }
+
+  handleFlsProfileBlur() {
+    if (this.suppressFlsProfileBlur) {
+      this.suppressFlsProfileBlur = false;
+      return;
+    }
+    this.showFlsProfileDropdown = false;
+  }
+
+  handleCloseFlsProfileDropdown(event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.showFlsProfileDropdown = false;
+    this.suppressFlsProfileBlur = false;
+  }
+
+  handleFlsProfileOptionMouseDown() {
+    this.suppressFlsProfileBlur = true;
+  }
+
+  handleFlsProfileSelect(event) {
+    const el = event.currentTarget;
+    if (!el || !el.dataset) return;
+    const value = el.dataset.value;
+    const label = el.dataset.label;
+    const metadataName = el.dataset.metadataName;
+    if (!value || !label) return;
+
+    const existingIndex = this.flsSelectedProfiles.findIndex(
+      (p) => p.value === value
+    );
+    if (existingIndex >= 0) {
+      this.flsSelectedProfiles = this.flsSelectedProfiles.filter(
+        (_, i) => i !== existingIndex
+      );
+    } else {
+      this.flsSelectedProfiles = [
+        ...this.flsSelectedProfiles,
+        {
+          value,
+          label,
+          metadataName,
+          readAll: true,
+          editAll: true,
+          isEditDisabled: false
+        }
+      ];
+    }
+    this.suppressFlsProfileBlur = true;
+  }
+
+  handleFlsChipRemoveMouseDown(event) {
+    event.preventDefault();
+  }
+
+  handleFlsProfileRemove(event) {
+    const idx = parseInt(event.currentTarget.dataset.index, 10);
+    this.flsSelectedProfiles = this.flsSelectedProfiles.filter((_, i) => i !== idx);
+  }
+
+  handleFlsProfileReadChange(event) {
+    const index = parseInt(event.currentTarget.dataset.index, 10);
+    const isRead = event.target.checked;
+    const updated = [...this.flsSelectedProfiles];
+    updated[index] = {
+      ...updated[index],
+      readAll: isRead,
+      editAll: isRead ? updated[index].editAll : false,
+      isEditDisabled: !isRead
+    };
+    this.flsSelectedProfiles = updated;
+  }
+
+  handleFlsProfileEditChange(event) {
+    const index = parseInt(event.currentTarget.dataset.index, 10);
+    const isEdit = event.target.checked;
+    const updated = [...this.flsSelectedProfiles];
+    updated[index] = {
+      ...updated[index],
+      editAll: isEdit,
+      readAll: isEdit ? true : updated[index].readAll,
+      isEditDisabled: false
+    };
+    this.flsSelectedProfiles = updated;
+  }
+
+  get filteredFlsFields() {
+    if (!this.flsFieldFilter) {
+      return this.flsFields;
+    }
+    const filter = this.flsFieldFilter.toLowerCase();
+    return this.flsFields.filter(
+      (f) =>
+        f.label.toLowerCase().includes(filter) ||
+        f.value.toLowerCase().includes(filter) ||
+        f.dataType.toLowerCase().includes(filter)
+    );
+  }
+
+  get selectedFlsFieldsCount() {
+    return this.flsFields.filter((f) => f.selected).length;
+  }
+
+  get isAllFilteredFlsFieldsSelected() {
+    const filtered = this.filteredFlsFields;
+    return filtered.length > 0 && filtered.every((f) => f.selected);
+  }
+
+  get isApplyFlsDisabled() {
+    return (
+      !this.flsSelectedObject ||
+      this.selectedFlsFieldsCount === 0 ||
+      this.flsSelectedProfiles.length === 0 ||
+      this.isLoading
+    );
+  }
+
+  handleFlsFieldFilterChange(event) {
+    this.flsFieldFilter = event.target.value;
+  }
+
+  handleFlsFieldRowToggle(event) {
+    const value = event.currentTarget.dataset.value;
+    const checked = event.target.checked;
+    this.flsFields = this.flsFields.map((f) =>
+      f.value === value ? { ...f, selected: checked } : f
+    );
+  }
+
+  handleFlsHeaderCheckboxToggle(event) {
+    const checked = event.target.checked;
+    const filteredValues = new Set(this.filteredFlsFields.map((f) => f.value));
+    this.flsFields = this.flsFields.map((f) =>
+      filteredValues.has(f.value) ? { ...f, selected: checked } : f
+    );
+  }
+
+  handleFlsSelectAllFields() {
+    this.flsFields = this.flsFields.map((f) => ({ ...f, selected: true }));
+  }
+
+  handleFlsDeselectAllFields() {
+    this.flsFields = this.flsFields.map((f) => ({ ...f, selected: false }));
+  }
+
+  async handleApplyFlsToExistingFields() {
+    const selectedFieldApiNames = this.flsFields
+      .filter((f) => f.selected)
+      .map((f) => f.value);
+
+    if (selectedFieldApiNames.length === 0) {
+      this.showToast("Warning", "Please select at least one field.", "warning");
+      return;
+    }
+    if (this.flsSelectedProfiles.length === 0) {
+      this.showToast("Warning", "Please select at least one Profile.", "warning");
+      return;
+    }
+
+    const assignments = this.flsSelectedProfiles.map((p) => ({
+      profileLabel: p.label,
+      profileMetadataName: p.metadataName || p.value,
+      readAll: p.readAll,
+      editAll: p.editAll
+    }));
+
+    this.isLoading = true;
+    this.flsManagerResults = [];
+
+    try {
+      const results = await assignFlsToExistingFields({
+        objectApiName: this.flsSelectedObject,
+        selectedFieldApiNames: selectedFieldApiNames,
+        assignments: assignments
+      });
+
+      this.flsManagerResults = (results || []).map((res) => ({
+        ...res,
+        statusClass: res.success ? "fls-status-badge success" : "fls-status-badge error",
+        statusLabel: res.success ? "Success" : "Failed"
+      }));
+
+      const hasFailures = this.flsManagerResults.some((res) => !res.success);
+      if (!hasFailures) {
+        this.showToast(
+          "Success",
+          `FLS permissions updated successfully for ${selectedFieldApiNames.length} field(s).`,
+          "success"
+        );
+      } else {
+        this.showToast(
+          "Warning",
+          "FLS assignment completed with some issues. Review details below.",
+          "warning"
+        );
+      }
+    } catch (error) {
+      this.showToast("Error updating FLS", this.extractErrorMessage(error), "error");
+    } finally {
+      this.isLoading = false;
+    }
+  }
 }
+// DevOps migration marker
