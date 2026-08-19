@@ -130,6 +130,16 @@ export default class BulkMetadataCreator extends LightningElement {
     { label: "Failed Only", value: "failed" }
   ];
 
+
+  connectedCallback() {
+    this.loadObjects();
+    // this.loadProfiles(); 
+  }
+
+  disconnectedCallback() {
+    // Clean up any resources or event listeners if needed when the component is removed from the DOM
+  }
+
   @wire(getObjects)
   wiredObjects(result) {
     this.wiredObjectsResult = result;
@@ -138,7 +148,7 @@ export default class BulkMetadataCreator extends LightningElement {
     } else if (result.error) {
       this.showToast(
         "Error",
-        "Failed to retrieve Salesforce objects: " + result.error.body.message,
+        "Failed to retrieve Salesforce objects: " + this.extractErrorMessage(result.error),
         "error"
       );
     }
@@ -351,12 +361,8 @@ export default class BulkMetadataCreator extends LightningElement {
     if (matched) {
       this.selectedExistingObject = matched.value;
       this.existingObjectSearchTerm = matched.label;
-    } else if (this.selectedExistingObject) {
-      const current = this.objectOptions.find(
-        (opt) => opt.value === this.selectedExistingObject
-      );
-      this.existingObjectSearchTerm = current ? current.label : "";
     } else {
+      this.selectedExistingObject = "";
       this.existingObjectSearchTerm = "";
     }
   }
@@ -607,12 +613,8 @@ export default class BulkMetadataCreator extends LightningElement {
       if (matched) {
         updatedRows[index].relatedObject = matched.value;
         updatedRows[index].relatedObjectSearchTerm = matched.label;
-      } else if (updatedRows[index].relatedObject) {
-        const current = this.objectOptions.find(
-          (opt) => opt.value === updatedRows[index].relatedObject
-        );
-        updatedRows[index].relatedObjectSearchTerm = current ? current.label : "";
       } else {
+        updatedRows[index].relatedObject = "";
         updatedRows[index].relatedObjectSearchTerm = "";
       }
       this.fieldRows = updatedRows;
@@ -1247,9 +1249,24 @@ export default class BulkMetadataCreator extends LightningElement {
 
   handleFlsObjectBlur() {
     if (this.suppressFlsObjectBlur) {
+      this.suppressFlsObjectBlur = false;
       return;
     }
     this.showFlsObjectDropdown = false;
+    const matched = this.findObjectMatch(this.flsObjectSearchTerm);
+    if (matched) {
+      if (this.flsSelectedObject !== matched.value) {
+        this.flsSelectedObject = matched.value;
+        this.flsObjectSearchTerm = matched.label;
+        this.loadFlsFields(matched.value);
+      } else {
+        this.flsObjectSearchTerm = matched.label;
+      }
+    } else {
+      this.flsSelectedObject = "";
+      this.flsObjectSearchTerm = "";
+      this.flsFields = [];
+    }
   }
 
   handleFlsObjectOptionMouseDown() {
@@ -1444,7 +1461,7 @@ export default class BulkMetadataCreator extends LightningElement {
         }
       ];
     }
-    this.suppressFlsProfileBlur = true;
+    this.suppressFlsProfileBlur = false; // Reset to false
   }
 
   handleFlsChipRemoveMouseDown(event) {
@@ -1597,6 +1614,16 @@ export default class BulkMetadataCreator extends LightningElement {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  extractErrorMessage(error) {
+    if (error && error.body && error.body.message) {
+      return error.body.message;
+    }
+    if (error && error.message) {
+      return error.message;
+    }
+    return "An unknown error occurred.";
   }
 }
 // DevOps migration marker
