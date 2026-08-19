@@ -133,6 +133,11 @@ export default class BulkMetadataCreator extends LightningElement {
 
   connectedCallback() {
     this.loadObjects();
+    // this.loadProfiles(); 
+  }
+
+  disconnectedCallback() {
+    // Clean up any resources or event listeners if needed when the component is removed from the DOM
   }
 
   @wire(getObjects)
