@@ -132,7 +132,7 @@ export default class BulkMetadataCreator extends LightningElement {
 
 
   connectedCallback() {
-    this.loadObjects();
+    // this.loadObjects();
     // this.loadProfiles(); 
   }
 
